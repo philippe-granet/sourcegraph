@@ -2,6 +2,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom-v5-compat'
 
 import { lazyComponent } from '@sourcegraph/shared/src/util/lazyComponent'
 
+import { SiteAdminRolesPageProps } from './SiteAdminRolesPage'
 import { siteAdminAreaRoutes } from '../../site-admin/routes'
 import { SiteAdminAreaRoute } from '../../site-admin/SiteAdminArea'
 import { BatchSpecsPageProps } from '../batches/BatchSpecsPage'
@@ -183,7 +184,10 @@ export const enterpriseSiteAdminAreaRoutes: readonly SiteAdminAreaRoute[] = (
         {
             path: '/roles',
             exact: true,
-            render: () => <p>Roles</p>
+            render: () => lazyComponent<SiteAdminRolesPageProps, 'RolesSiteAdminPage'>(
+                () => import('./SiteAdminRolesPage'),
+                'RolesSiteAdminPage'
+            )
         }
     ] as readonly (SiteAdminAreaRoute | undefined)[]
 ).filter(Boolean) as readonly SiteAdminAreaRoute[]
