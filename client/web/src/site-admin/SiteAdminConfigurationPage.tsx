@@ -6,6 +6,7 @@ import { Subject, Subscription } from 'rxjs'
 import { delay, mergeMap, retryWhen, tap, timeout } from 'rxjs/operators'
 
 import { logger } from '@sourcegraph/common'
+import { gql } from '@sourcegraph/http-client'
 import { SiteConfiguration } from '@sourcegraph/shared/src/schema/site.schema'
 import { TelemetryProps } from '@sourcegraph/shared/src/telemetry/telemetryService'
 import { ThemeProps } from '@sourcegraph/shared/src/theme'
@@ -29,6 +30,8 @@ import { refreshSiteFlags } from '../site/backend'
 import { eventLogger } from '../tracking/eventLogger'
 
 import { fetchSite, reloadSite, updateSiteConfiguration } from './backend'
+
+import { usePageSwitcherPagination } from '../components/FilteredConnection/hooks/usePageSwitcherPagination'
 
 import styles from './SiteAdminConfigurationPage.module.scss'
 
@@ -500,7 +503,10 @@ export class SiteAdminConfigurationPage extends React.Component<Props, State> {
     }
 }
 
-interface SiteConfigurationChangeProps {}
+interface SiteConfigurationChangeProps {
+    first: number
+    after: string
+}
 
 const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfigurationChangeProps> = props => {
     const { connection, loading, error, refetch, ...paginationProps } = usePageSwitcherPagination<
@@ -509,8 +515,7 @@ const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfiguration
         SiteConfigurationChangeNode
     >({
         query: SITE_CONFIGURATION_CHANGE_CONNECTION_QUERY,
-        variables: { namespace: props.namespace.id },
-        getConnection: ({ data }) => data?.savedSearches || undefined,
+        getConnection: ({ data }) => data?.configuration || undefined,
     })
 
     return (
@@ -522,7 +527,7 @@ const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfiguration
     )
 }
 
-const SITE_CONFIGURATION_CHANGE__CONNECTION_QUERY = gql`
+const SITE_CONFIGURATION_CHANGE_CONNECTION_QUERY = gql`
 query SiteConfigurationHistory($first: Int!) {
   site {
     __typename
