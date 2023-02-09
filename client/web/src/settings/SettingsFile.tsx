@@ -8,12 +8,13 @@ import { TelemetryProps } from '@sourcegraph/shared/src/telemetry/telemetryServi
 import { ThemeProps } from '@sourcegraph/shared/src/theme'
 import { LoadingSpinner, Tabs, Tab, TabList, TabPanels, TabPanel } from '@sourcegraph/wildcard'
 
-import { GeneratedSettingsForm } from './GeneratedSettingsForm'
 import settingsSchemaJSON from '../../../../schema/settings.schema.json'
 import { SaveToolbar } from '../components/SaveToolbar'
 import { SiteAdminSettingsCascadeFields } from '../graphql-operations'
 import { eventLogger } from '../tracking/eventLogger'
 import { globalHistory } from '../util/globalHistory'
+
+import { GeneratedSettingsForm } from './GeneratedSettingsForm'
 
 import styles from './SettingsFile.module.scss'
 
@@ -165,7 +166,7 @@ export class SettingsFile extends React.PureComponent<Props, State> {
                     </TabList>
                     <TabPanels>
                         <TabPanel>
-                            <GeneratedSettingsForm value={contents} jsonSchema={settingsSchemaJSON} />
+                            <GeneratedSettingsForm jsonSchema={settingsSchemaJSON} />
                         </TabPanel>
                         <TabPanel>
                             <React.Suspense fallback={<LoadingSpinner className="mt-2" />}>
