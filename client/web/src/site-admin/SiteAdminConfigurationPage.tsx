@@ -1,4 +1,4 @@
-import * as React from 'react'
+import React, { useState } from 'react'
 
 import classNames from 'classnames'
 import * as jsonc from 'jsonc-parser'
@@ -21,6 +21,10 @@ import {
     Container,
     ErrorAlert,
     PageSwitcher,
+    Collapse,
+    CollapseHeader,
+    CollapsePanel,
+    Icon,
 } from '@sourcegraph/wildcard'
 
 import siteSchemaJSON from '../../../../schema/site.schema.json'
@@ -40,6 +44,7 @@ import { fetchSite, reloadSite, updateSiteConfiguration } from './backend'
 import { usePageSwitcherPagination } from '../components/FilteredConnection/hooks/usePageSwitcherPagination'
 
 import styles from './SiteAdminConfigurationPage.module.scss'
+import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
 
 const defaultModificationOptions: jsonc.ModificationOptions = {
     formattingOptions: {
@@ -432,7 +437,7 @@ export class SiteAdminConfigurationPage extends React.Component<Props, State> {
                         </div>
                     )}
                 </Container>
-                <SiteConfigurationChangeListPage />
+                <SiteConfigurationChangeListPage isLightTheme={this.props.isLightTheme} />
             </div>
         )
     }
@@ -509,12 +514,9 @@ export class SiteAdminConfigurationPage extends React.Component<Props, State> {
     }
 }
 
-interface SiteConfigurationChangeProps {
-    first: number
-    after: string
-}
+interface SiteConfigurationChangeProps {}
 
-const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfigurationChangeProps> = props => {
+const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfigurationChangeProps> = () => {
     const { connection, loading, error, refetch, ...paginationProps } = usePageSwitcherPagination<
         SiteConfigurationHistoryResult,
         SiteConfigurationHistoryVariables,
@@ -531,29 +533,54 @@ const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfiguration
         <div>
             <Container className="mb-3">
                 <h3>History</h3>
-                <ul className="list-group list-group-flush test-org-members mt-4">
-                    {/* {totalCount > 0 && (
-                        <li className="d-flex mb-2 align-items-center justify-content-between">
-                            <strong className="flex-1">
-                                {`${totalCount} ${pluralize('person', totalCount, 'people')} in the ${
-                                    org.name
-                                } organization`}
-                            </strong>
-                            <div className="flex-1 d-flex align-items-center justify-content-between">
-                                <strong>Role</strong>
-                                <strong>Action</strong>
-                            </div>
-                        </li>
-                    )} */}
-                    {(connection?.nodes || []).map((node, index) => (
-                        <li key={node.id}>
-                            <pre>{node.diff}</pre>
-                        </li>
-                    ))}
-                </ul>
+                <div className="mt-4">
+                    {(connection?.nodes || [])
+                        .filter(node => node.diff)
+                        .map(node => (
+                            <SiteConfigurationHistoryItem node={node} />
+                        ))}
+                </div>
                 <PageSwitcher {...paginationProps} className="mt-4" totalCount={connection?.totalCount || 0} />
             </Container>
         </div>
+    )
+}
+
+interface SiteConfigurationHistoryItemProps {
+    node: SiteConfigurationChangeNode
+}
+
+const SiteConfigurationHistoryItem: React.FunctionComponent<SiteConfigurationHistoryItemProps> = ({ node }) => {
+    const [open, setOpen] = useState<boolean>(false)
+
+    const icon = open ? mdiChevronUp : mdiChevronDown
+
+    if (node.reproducedDiff) {
+        return (
+            <Collapse key={node.id} isOpen={open} onOpenChange={setOpen}>
+                <CollapseHeader
+                    as={Button}
+                    aria-expanded={open}
+                    type="button"
+                    className="d-flex p-0 justify-content-start w-100"
+                >
+                    <Icon aria-hidden={true} svgPath={icon} />
+                    <>
+                        Author: {node.author} Created At: {node.createdAt}
+                    </>
+                </CollapseHeader>
+                <CollapsePanel>
+                    <Code>{node.diff}</Code>
+                </CollapsePanel>
+            </Collapse>
+        )
+    }
+    return (
+        <CollapseHeader className="d-block">
+            <>
+                {node.author} {node.createdAt}
+            </>
+        </CollapseHeader>
     )
 }
 
