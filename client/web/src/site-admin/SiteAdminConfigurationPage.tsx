@@ -5,6 +5,7 @@ import * as jsonc from 'jsonc-parser'
 import { Subject, Subscription } from 'rxjs'
 import { delay, mergeMap, retryWhen, tap, timeout } from 'rxjs/operators'
 
+import { Timestamp } from '@sourcegraph/branded/src/components/Timestamp'
 import { logger } from '@sourcegraph/common'
 import { gql } from '@sourcegraph/http-client'
 import { SiteConfiguration } from '@sourcegraph/shared/src/schema/site.schema'
@@ -73,155 +74,155 @@ const quickConfigureActions: {
     label: string
     run: (config: string) => { edits: jsonc.Edit[]; selectText: string }
 }[] = [
-    {
-        id: 'setExternalURL',
-        label: 'Set external URL',
-        run: config => {
-            const value = '<external URL>'
-            const edits = jsonc.modify(config, ['externalURL'], value, defaultModificationOptions)
-            return { edits, selectText: '<external URL>' }
+        {
+            id: 'setExternalURL',
+            label: 'Set external URL',
+            run: config => {
+                const value = '<external URL>'
+                const edits = jsonc.modify(config, ['externalURL'], value, defaultModificationOptions)
+                return { edits, selectText: '<external URL>' }
+            },
         },
-    },
-    {
-        id: 'setLicenseKey',
-        label: 'Set license key',
-        run: config => {
-            const value = '<license key>'
-            const edits = jsonc.modify(config, ['licenseKey'], value, defaultModificationOptions)
-            return { edits, selectText: '<license key>' }
+        {
+            id: 'setLicenseKey',
+            label: 'Set license key',
+            run: config => {
+                const value = '<license key>'
+                const edits = jsonc.modify(config, ['licenseKey'], value, defaultModificationOptions)
+                return { edits, selectText: '<license key>' }
+            },
         },
-    },
-    {
-        id: 'addGitLabAuth',
-        label: 'Add GitLab sign-in',
-        run: config => {
-            const edits = [
-                editWithComments(
-                    config,
-                    ['auth.providers', -1],
-                    {
-                        COMMENT: true,
-                        type: 'gitlab',
-                        displayName: 'GitLab',
-                        url: '<GitLab URL>',
-                        clientID: '<client ID>',
-                        clientSecret: '<client secret>',
-                    },
-                    {
-                        COMMENT: '// See https://docs.sourcegraph.com/admin/auth#gitlab for instructions',
-                    }
-                ),
-            ]
-            return { edits, selectText: '<GitLab URL>' }
+        {
+            id: 'addGitLabAuth',
+            label: 'Add GitLab sign-in',
+            run: config => {
+                const edits = [
+                    editWithComments(
+                        config,
+                        ['auth.providers', -1],
+                        {
+                            COMMENT: true,
+                            type: 'gitlab',
+                            displayName: 'GitLab',
+                            url: '<GitLab URL>',
+                            clientID: '<client ID>',
+                            clientSecret: '<client secret>',
+                        },
+                        {
+                            COMMENT: '// See https://docs.sourcegraph.com/admin/auth#gitlab for instructions',
+                        }
+                    ),
+                ]
+                return { edits, selectText: '<GitLab URL>' }
+            },
         },
-    },
-    {
-        id: 'addGitHubAuth',
-        label: 'Add GitHub sign-in',
-        run: config => {
-            const edits = [
-                editWithComments(
-                    config,
-                    ['auth.providers', -1],
-                    {
-                        COMMENT: true,
-                        type: 'github',
-                        displayName: 'GitHub',
-                        url: 'https://github.com/',
-                        allowSignup: true,
-                        clientID: '<client ID>',
-                        clientSecret: '<client secret>',
-                    },
-                    { COMMENT: '// See https://docs.sourcegraph.com/admin/auth#github for instructions' }
-                ),
-            ]
-            return { edits, selectText: '<client ID>' }
+        {
+            id: 'addGitHubAuth',
+            label: 'Add GitHub sign-in',
+            run: config => {
+                const edits = [
+                    editWithComments(
+                        config,
+                        ['auth.providers', -1],
+                        {
+                            COMMENT: true,
+                            type: 'github',
+                            displayName: 'GitHub',
+                            url: 'https://github.com/',
+                            allowSignup: true,
+                            clientID: '<client ID>',
+                            clientSecret: '<client secret>',
+                        },
+                        { COMMENT: '// See https://docs.sourcegraph.com/admin/auth#github for instructions' }
+                    ),
+                ]
+                return { edits, selectText: '<client ID>' }
+            },
         },
-    },
-    {
-        id: 'useOneLoginSAML',
-        label: 'Add OneLogin SAML',
-        run: config => {
-            const edits = [
-                editWithComments(
-                    config,
-                    ['auth.providers', -1],
-                    {
-                        COMMENT: true,
+        {
+            id: 'useOneLoginSAML',
+            label: 'Add OneLogin SAML',
+            run: config => {
+                const edits = [
+                    editWithComments(
+                        config,
+                        ['auth.providers', -1],
+                        {
+                            COMMENT: true,
 
-                        type: 'saml',
-                        displayName: 'OneLogin',
-                        identityProviderMetadataURL: '<identity provider metadata URL>',
-                    },
-                    {
-                        COMMENT: '// See https://docs.sourcegraph.com/admin/auth/saml/one_login for instructions',
-                    }
-                ),
-            ]
-            return { edits, selectText: '<identity provider metadata URL>' }
+                            type: 'saml',
+                            displayName: 'OneLogin',
+                            identityProviderMetadataURL: '<identity provider metadata URL>',
+                        },
+                        {
+                            COMMENT: '// See https://docs.sourcegraph.com/admin/auth/saml/one_login for instructions',
+                        }
+                    ),
+                ]
+                return { edits, selectText: '<identity provider metadata URL>' }
+            },
         },
-    },
-    {
-        id: 'useOktaSAML',
-        label: 'Add Okta SAML',
-        run: config => {
-            const value = {
-                COMMENT: true,
-                type: 'saml',
-                displayName: 'Okta',
-                identityProviderMetadataURL: '<identity provider metadata URL>',
-            }
-            const edits = [
-                editWithComments(config, ['auth.providers', -1], value, {
-                    COMMENT: '// See https://docs.sourcegraph.com/admin/auth/saml/okta for instructions',
-                }),
-            ]
-            return { edits, selectText: '<identity provider metadata URL>' }
+        {
+            id: 'useOktaSAML',
+            label: 'Add Okta SAML',
+            run: config => {
+                const value = {
+                    COMMENT: true,
+                    type: 'saml',
+                    displayName: 'Okta',
+                    identityProviderMetadataURL: '<identity provider metadata URL>',
+                }
+                const edits = [
+                    editWithComments(config, ['auth.providers', -1], value, {
+                        COMMENT: '// See https://docs.sourcegraph.com/admin/auth/saml/okta for instructions',
+                    }),
+                ]
+                return { edits, selectText: '<identity provider metadata URL>' }
+            },
         },
-    },
-    {
-        id: 'useSAML',
-        label: 'Add other SAML',
-        run: config => {
-            const edits = [
-                editWithComments(
-                    config,
-                    ['auth.providers', -1],
-                    {
-                        COMMENT: true,
-                        type: 'saml',
-                        displayName: 'SAML',
-                        identityProviderMetadataURL: '<SAML IdP metadata URL>',
-                    },
-                    { COMMENT: '// See https://docs.sourcegraph.com/admin/auth/saml for instructions' }
-                ),
-            ]
-            return { edits, selectText: '<SAML IdP metadata URL>' }
+        {
+            id: 'useSAML',
+            label: 'Add other SAML',
+            run: config => {
+                const edits = [
+                    editWithComments(
+                        config,
+                        ['auth.providers', -1],
+                        {
+                            COMMENT: true,
+                            type: 'saml',
+                            displayName: 'SAML',
+                            identityProviderMetadataURL: '<SAML IdP metadata URL>',
+                        },
+                        { COMMENT: '// See https://docs.sourcegraph.com/admin/auth/saml for instructions' }
+                    ),
+                ]
+                return { edits, selectText: '<SAML IdP metadata URL>' }
+            },
         },
-    },
-    {
-        id: 'useOIDC',
-        label: 'Add OpenID Connect',
-        run: config => {
-            const edits = [
-                editWithComments(
-                    config,
-                    ['auth.providers', -1],
-                    {
-                        COMMENT: true,
-                        type: 'openidconnect',
-                        displayName: 'OpenID Connect',
-                        issuer: '<identity provider URL>',
-                        clientID: '<client ID>',
-                        clientSecret: '<client secret>',
-                    },
-                    { COMMENT: '// See https://docs.sourcegraph.com/admin/auth#openid-connect for instructions' }
-                ),
-            ]
-            return { edits, selectText: '<identity provider URL>' }
+        {
+            id: 'useOIDC',
+            label: 'Add OpenID Connect',
+            run: config => {
+                const edits = [
+                    editWithComments(
+                        config,
+                        ['auth.providers', -1],
+                        {
+                            COMMENT: true,
+                            type: 'openidconnect',
+                            displayName: 'OpenID Connect',
+                            issuer: '<identity provider URL>',
+                            clientID: '<client ID>',
+                            clientSecret: '<client secret>',
+                        },
+                        { COMMENT: '// See https://docs.sourcegraph.com/admin/auth#openid-connect for instructions' }
+                    ),
+                ]
+                return { edits, selectText: '<identity provider URL>' }
+            },
         },
-    },
-]
+    ]
 
 interface Props extends ThemeProps, TelemetryProps {}
 
@@ -315,7 +316,7 @@ export class SiteAdminConfigurationPage extends React.Component<Props, State> {
                     {Date.now() - this.state.reloadStartedAt > EXPECTED_RELOAD_WAIT && (
                         <Text>
                             // TODO: Uncomment. //{' '}
-                            <small>It's taking longer than expected. Check the server logs for error messages.</small>
+                            // <small>It's taking longer than expected. Check the server logs for error messages.</small>
                         </Text>
                     )}
                 </Alert>
@@ -459,7 +460,7 @@ export class SiteAdminConfigurationPage extends React.Component<Props, State> {
                 saving: false,
                 error: new Error(
                     String(error) +
-                        '\nError occured while attempting to save site configuration. Please backup changes before reloading the page.'
+                    '\nError occured while attempting to save site configuration. Please backup changes before reloading the page.'
                 ),
             })
             throw error
@@ -537,8 +538,9 @@ const SiteConfigurationChangeListPage: React.FunctionComponent<SiteConfiguration
                     {(connection?.nodes || [])
                         .filter(node => node.diff)
                         .map(node => (
-                            <SiteConfigurationHistoryItem node={node} />
+                            <><SiteConfigurationHistoryItem node={node} /> <hr className="mb-3 mt-3" /> </>
                         ))}
+
                 </div>
                 <PageSwitcher {...paginationProps} className="mt-4" totalCount={connection?.totalCount || 0} />
             </Container>
@@ -555,7 +557,22 @@ const SiteConfigurationHistoryItem: React.FunctionComponent<SiteConfigurationHis
 
     const icon = open ? mdiChevronUp : mdiChevronDown
 
+    const linesChanged = (diff: string): number[] => {
+        const diffSection = diff.split("@@")[1]
+        const metadataMatch = diffSection.match(/(\-?\d+),(\d+) \+(\-?\d+),(\d+)/)
+
+        if (metadataMatch) {
+            const removedLines = parseInt(metadataMatch[1])
+            const addedLines = parseInt(metadataMatch[3])
+            return [removedLines, addedLines]
+
+        }
+        return []
+    }
+
     if (node.reproducedDiff) {
+        const [removedLines, addedLines] = linesChanged(node.diff)
+
         return (
             <Collapse key={node.id} isOpen={open} onOpenChange={setOpen}>
                 <CollapseHeader
@@ -565,18 +582,19 @@ const SiteConfigurationHistoryItem: React.FunctionComponent<SiteConfigurationHis
                     className="d-flex p-0 justify-content-start w-100"
                 >
                     <Icon aria-hidden={true} svgPath={icon} />
-                    <>
-                        Author: {node.author} Created At: {node.createdAt}
-                    </>
+                    <span><Timestamp date={node.createdAt} /></span> {node.author && <span className="ml-1">by {node.author.displayName}</span>}
+                    {node.diff && <span className="ml-auto"><span className="ml-1" style={{ color: 'var(--red)' }}>{removedLines} removed</span> , <span style={{ color: 'var(--green)' }}> {addedLines} added </span>  </span>}
+
                 </CollapseHeader>
                 <CollapsePanel>
                     <Code>{node.diff}</Code>
                 </CollapsePanel>
-            </Collapse>
+            </Collapse >
         )
+
     }
     return (
-        <CollapseHeader className="d-block">
+        <CollapseHeader className="d-block mb-3">
             <>
                 {node.author} {node.createdAt}
             </>
