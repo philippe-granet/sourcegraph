@@ -89,6 +89,15 @@ type RepoLookupResult struct {
 	ErrorTemporarilyUnavailable bool // the repository host was temporarily unavailable (e.g., rate limit exceeded)
 }
 
+func (r *RepoLookupResult) ToProto() *proto.RepoLookupResponse {
+	return &proto.RepoLookupResponse{
+		Repo:                        r.Repo.ToProto(),
+		ErrorNotFound:               r.ErrorNotFound,
+		ErrorUnauthorized:           r.ErrorUnauthorized,
+		ErrorTemporarilyUnavailable: r.ErrorTemporarilyUnavailable,
+	}
+}
+
 func (r *RepoLookupResult) String() string {
 	var parts []string
 	if r.Repo != nil {
@@ -126,6 +135,28 @@ type RepoInfo struct {
 	// ExternalRepo specifies this repository's ID on the external service where it resides (and the external
 	// service itself).
 	ExternalRepo api.ExternalRepoSpec
+}
+
+func (ri *RepoInfo) ToProto() *proto.RepoInfo {
+	if ri == nil {
+		return nil
+	}
+
+	return &proto.RepoInfo{
+		Id:          int32(ri.ID),
+		Name:        string(ri.Name),
+		Description: ri.Description,
+		Fork:        ri.Fork,
+		Archived:    ri.Archived,
+		Private:     ri.Private,
+		VcsInfo:     ri.VCS.ToProto(),
+		Links:       ri.Links.ToProto(),
+		ExternalRepo: &proto.ExternalRepoSpec{
+			Id:          ri.ExternalRepo.ID,
+			ServiceType: ri.ExternalRepo.ServiceType,
+			ServiceId:   ri.ExternalRepo.ServiceID,
+		},
+	}
 }
 
 func NewRepoInfo(r *types.Repo) *RepoInfo {
@@ -228,12 +259,27 @@ type VCSInfo struct {
 	URL string // the Git remote URL
 }
 
+func (i *VCSInfo) ToProto() *proto.VCSInfo {
+	return &proto.VCSInfo{
+		Url: i.URL,
+	}
+}
+
 // RepoLinks contains URLs and URL patterns for objects in this repository.
 type RepoLinks struct {
 	Root   string // the repository's main (root) page URL
 	Tree   string // the URL to a tree, with {rev} and {path} substitution variables
 	Blob   string // the URL to a blob, with {rev} and {path} substitution variables
 	Commit string // the URL to a commit, with {commit} substitution variable
+}
+
+func (rl *RepoLinks) ToProto() *proto.RepoLinks {
+	return &proto.RepoLinks{
+		Root:   rl.Root,
+		Tree:   rl.Tree,
+		Blob:   rl.Blob,
+		Commit: rl.Commit,
+	}
 }
 
 // RepoUpdateRequest is a request to update the contents of a given repo, or clone it if it doesn't exist.
