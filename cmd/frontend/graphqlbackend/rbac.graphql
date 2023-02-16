@@ -171,6 +171,10 @@ extend type Mutation {
     Creates a role.
     """
     createRole(name: String!): Role!
+    """
+    Assign multiple roles to a user.
+    """
+    assignRolesToUser(user: ID!, roles: [ID!]!): EmptyResponse!
 }
 
 extend type User {
