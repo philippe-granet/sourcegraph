@@ -2,6 +2,34 @@ syntax = "proto3";
 
 package repoupdater.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/sourcegraph/sourcegraph/internal/repoupdater/v1";
 
-service RepoUpdaterService {}
+service RepoUpdaterService {
+    rpc RepoUpdateSchedulerInfo(RepoUpdateSchedulerInfoRequest) returns (RepoUpdateSchedulerInfoResponse);
+}
+
+message RepoUpdateSchedulerInfoRequest {
+	// The ID of the repo to lookup the schedule for.
+    int32 id = 1;
+}
+
+message RepoUpdateSchedulerInfoResponse {
+    RepoScheduleState schedule = 1;
+    RepoQueueState queue = 2;
+}
+
+message RepoScheduleState {
+    int64 index = 1;
+    int64 total = 2;
+    int64 interval_seconds = 3;
+    google.protobuf.Timestamp due = 4;
+}
+
+message RepoQueueState {
+    int64 index = 1;
+    int64 total = 2;
+    bool updating = 3;
+    int64 priority = 4;
+}

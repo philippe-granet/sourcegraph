@@ -14,7 +14,9 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/extsvc/bitbucketserver"
 	"github.com/sourcegraph/sourcegraph/internal/extsvc/github"
 	"github.com/sourcegraph/sourcegraph/internal/extsvc/gitlab"
+	proto "github.com/sourcegraph/sourcegraph/internal/repoupdater/v1"
 	"github.com/sourcegraph/sourcegraph/internal/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type RepoUpdateSchedulerInfoArgs struct {
@@ -25,6 +27,28 @@ type RepoUpdateSchedulerInfoArgs struct {
 type RepoUpdateSchedulerInfoResult struct {
 	Schedule *RepoScheduleState `json:",omitempty"`
 	Queue    *RepoQueueState    `json:",omitempty"`
+}
+
+func (r *RepoUpdateSchedulerInfoResult) ToProto() *proto.RepoUpdateSchedulerInfoResponse {
+	res := &proto.RepoUpdateSchedulerInfoResponse{}
+	if r.Schedule != nil {
+		res.Schedule = &proto.RepoScheduleState{
+			Index:           int64(r.Schedule.Index),
+			Total:           int64(r.Schedule.Total),
+			IntervalSeconds: int64(r.Schedule.IntervalSeconds),
+			Due:             timestamppb.New(r.Schedule.Due),
+		}
+	}
+
+	if r.Queue != nil {
+		res.Queue = &proto.RepoQueueState{
+			Index:    int64(r.Queue.Index),
+			Total:    int64(r.Queue.Total),
+			Updating: r.Queue.Updating,
+			Priority: int64(r.Queue.Priority),
+		}
+	}
+	return res
 }
 
 type RepoScheduleState struct {

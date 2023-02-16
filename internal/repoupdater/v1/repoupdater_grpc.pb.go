@@ -7,7 +7,10 @@
 package v1
 
 import (
+	context "context"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RepoUpdaterServiceClient interface {
+	RepoUpdateSchedulerInfo(ctx context.Context, in *RepoUpdateSchedulerInfoRequest, opts ...grpc.CallOption) (*RepoUpdateSchedulerInfoResponse, error)
 }
 
 type repoUpdaterServiceClient struct {
@@ -29,10 +33,20 @@ func NewRepoUpdaterServiceClient(cc grpc.ClientConnInterface) RepoUpdaterService
 	return &repoUpdaterServiceClient{cc}
 }
 
+func (c *repoUpdaterServiceClient) RepoUpdateSchedulerInfo(ctx context.Context, in *RepoUpdateSchedulerInfoRequest, opts ...grpc.CallOption) (*RepoUpdateSchedulerInfoResponse, error) {
+	out := new(RepoUpdateSchedulerInfoResponse)
+	err := c.cc.Invoke(ctx, "/repoupdater.v1.RepoUpdaterService/RepoUpdateSchedulerInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepoUpdaterServiceServer is the server API for RepoUpdaterService service.
 // All implementations must embed UnimplementedRepoUpdaterServiceServer
 // for forward compatibility
 type RepoUpdaterServiceServer interface {
+	RepoUpdateSchedulerInfo(context.Context, *RepoUpdateSchedulerInfoRequest) (*RepoUpdateSchedulerInfoResponse, error)
 	mustEmbedUnimplementedRepoUpdaterServiceServer()
 }
 
@@ -40,6 +54,9 @@ type RepoUpdaterServiceServer interface {
 type UnimplementedRepoUpdaterServiceServer struct {
 }
 
+func (UnimplementedRepoUpdaterServiceServer) RepoUpdateSchedulerInfo(context.Context, *RepoUpdateSchedulerInfoRequest) (*RepoUpdateSchedulerInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RepoUpdateSchedulerInfo not implemented")
+}
 func (UnimplementedRepoUpdaterServiceServer) mustEmbedUnimplementedRepoUpdaterServiceServer() {}
 
 // UnsafeRepoUpdaterServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -53,13 +70,36 @@ func RegisterRepoUpdaterServiceServer(s grpc.ServiceRegistrar, srv RepoUpdaterSe
 	s.RegisterService(&RepoUpdaterService_ServiceDesc, srv)
 }
 
+func _RepoUpdaterService_RepoUpdateSchedulerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoUpdateSchedulerInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoUpdaterServiceServer).RepoUpdateSchedulerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoupdater.v1.RepoUpdaterService/RepoUpdateSchedulerInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoUpdaterServiceServer).RepoUpdateSchedulerInfo(ctx, req.(*RepoUpdateSchedulerInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepoUpdaterService_ServiceDesc is the grpc.ServiceDesc for RepoUpdaterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var RepoUpdaterService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "repoupdater.v1.RepoUpdaterService",
 	HandlerType: (*RepoUpdaterServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "repoupdater.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RepoUpdateSchedulerInfo",
+			Handler:    _RepoUpdaterService_RepoUpdateSchedulerInfo_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "repoupdater.proto",
 }
