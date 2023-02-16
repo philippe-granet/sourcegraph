@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package repoupdater.v1;
+
+option go_package = "github.com/sourcegraph/sourcegraph/internal/repoupdater/v1";
+
+service RepoUpdaterService {}
