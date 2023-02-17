@@ -39,7 +39,6 @@ func TestReposHandler(t *testing.T) {
 			h := (&Serve{
 				Logger: logtest.Scoped(t),
 				Addr:   testAddress,
-				Root:   root,
 			}).handler()
 
 			var want []Repo
@@ -53,12 +52,12 @@ func TestReposHandler(t *testing.T) {
 				want = append(want, Repo{Name: name, URI: uri, ClonePath: clonePath})
 
 			}
-			testReposHandler(t, h, want)
+			testReposHandler(t, h, want, []string{root})
 		})
 	}
 }
 
-func testReposHandler(t *testing.T, h http.Handler, repos []Repo) {
+func testReposHandler(t *testing.T, h http.Handler, repos []Repo, roots []string) {
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 
@@ -157,8 +156,7 @@ func TestIgnoreGitSubmodules(t *testing.T) {
 
 	repos, err := (&Serve{
 		Logger: logtest.Scoped(t),
-		Root:   root,
-	}).Repos()
+	}).Repos([]string{root})
 	if err != nil {
 		t.Fatal(err)
 	}

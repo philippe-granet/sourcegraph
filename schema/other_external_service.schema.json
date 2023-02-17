@@ -34,6 +34,16 @@
       "type": "string",
       "default": "{base}/{repo}",
       "examples": ["pretty-host-name/{repo}"]
+    },
+    "roots": {
+      "description": "For use with serve-git: The root directories to walk when discovering git repositories to mirror. More documentation here: https://docs.sourcegraph.com/admin/external_service/src_serve_git",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "format": "uri-reference",
+        "examples": ["path/to/my/repo", "path/to/my/repo.git/"]
+      }
     }
   }
 }

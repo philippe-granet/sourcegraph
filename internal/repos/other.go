@@ -1,6 +1,7 @@
 package repos
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -35,6 +36,10 @@ type (
 		URI       string `json:"uri"`
 		Name      string `json:"name"`
 		ClonePath string `json:"clonePath"`
+	}
+
+	ListReposRequest struct {
+		Roots []string `json:"roots"`
 	}
 )
 
@@ -171,7 +176,11 @@ func (s OtherSource) otherRepoFromCloneURL(urn string, u *url.URL) (*types.Repo,
 }
 
 func (s OtherSource) srcExpose(ctx context.Context) ([]*types.Repo, error) {
-	req, err := http.NewRequest("GET", s.conn.Url+"/v1/list-repos", nil)
+	reqBody, err := json.Marshal(ListReposRequest{Roots: s.conn.Roots})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("GET", s.conn.Url+"/v1/list-repos", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/sourcegraph/sourcegraph/internal/debugserver"
 	"github.com/sourcegraph/sourcegraph/internal/env"
@@ -15,8 +16,8 @@ import (
 type Config struct {
 	env.BaseConfig
 
-	Addr      string
-	ReposRoot string
+	Addr       string
+	ReposRoots []string
 }
 
 func (c *Config) Load() {
@@ -25,7 +26,8 @@ func (c *Config) Load() {
 		defaultReposRoot = pwd
 	}
 
-	c.ReposRoot = c.Get("SRC", defaultReposRoot, "Root dir containing repos.")
+	roots := strings.Fields(c.Get("SRC", defaultReposRoot, "Root dir containing repos."))
+	c.ReposRoots = roots
 
 	url, err := url.Parse(c.Get("SRC_SERVE_GIT_URL", "http://127.0.0.1:3434", "URL that servegit should listen on."))
 	if err != nil {
@@ -58,16 +60,10 @@ func (s svc) Start(ctx context.Context, observationCtx *observation.Context, rea
 
 	config := configI.(*Config)
 
-	if config.ReposRoot == "" {
-		observationCtx.Logger.Warn("skipping local code since the environment variable SRC is not set")
-		return nil
-	}
-
 	// Start servegit which walks ReposRoot to find repositories and exposes
 	// them over HTTP for Sourcegraph's syncer to discover and clone.
 	srv := &Serve{
 		Addr:   config.Addr,
-		Root:   config.ReposRoot,
 		Logger: observationCtx.Logger,
 	}
 	if err := srv.Start(); err != nil {
@@ -78,7 +74,7 @@ func (s svc) Start(ctx context.Context, observationCtx *observation.Context, rea
 	// connects to it.
 	//
 	// Note: src.Addr is updated to reflect the actual listening address.
-	if err := ensureExtSVC(observationCtx, "http://"+srv.Addr); err != nil {
+	if err := ensureExtSVC(observationCtx, "http://"+srv.Addr, config.ReposRoots); err != nil {
 		return errors.Wrap(err, "failed to create external service which imports local repositories")
 	}
 
