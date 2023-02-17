@@ -1,4 +1,4 @@
-package repoupdater
+package repoupdatjr
 
 import (
 	"bytes"

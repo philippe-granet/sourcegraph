@@ -31,6 +31,8 @@ type RepoUpdaterServiceClient interface {
 	EnqueueRepoUpdate(ctx context.Context, in *EnqueueRepoUpdateRequest, opts ...grpc.CallOption) (*EnqueueRepoUpdateResponse, error)
 	EnqueueChangesetSync(ctx context.Context, in *EnqueueChangesetSyncRequest, opts ...grpc.CallOption) (*EnqueueChangesetSyncResponse, error)
 	SchedulePermsSync(ctx context.Context, in *SchedulePermsSyncRequest, opts ...grpc.CallOption) (*SchedulePermsSyncResponse, error)
+	// SyncExternalService requests the given external service to be synced.
+	SyncExternalService(ctx context.Context, in *SyncExternalServiceRequest, opts ...grpc.CallOption) (*SyncExternalServiceResponse, error)
 }
 
 type repoUpdaterServiceClient struct {
@@ -86,6 +88,15 @@ func (c *repoUpdaterServiceClient) SchedulePermsSync(ctx context.Context, in *Sc
 	return out, nil
 }
 
+func (c *repoUpdaterServiceClient) SyncExternalService(ctx context.Context, in *SyncExternalServiceRequest, opts ...grpc.CallOption) (*SyncExternalServiceResponse, error) {
+	out := new(SyncExternalServiceResponse)
+	err := c.cc.Invoke(ctx, "/repoupdater.v1.RepoUpdaterService/SyncExternalService", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepoUpdaterServiceServer is the server API for RepoUpdaterService service.
 // All implementations must embed UnimplementedRepoUpdaterServiceServer
 // for forward compatibility
@@ -99,6 +110,8 @@ type RepoUpdaterServiceServer interface {
 	EnqueueRepoUpdate(context.Context, *EnqueueRepoUpdateRequest) (*EnqueueRepoUpdateResponse, error)
 	EnqueueChangesetSync(context.Context, *EnqueueChangesetSyncRequest) (*EnqueueChangesetSyncResponse, error)
 	SchedulePermsSync(context.Context, *SchedulePermsSyncRequest) (*SchedulePermsSyncResponse, error)
+	// SyncExternalService requests the given external service to be synced.
+	SyncExternalService(context.Context, *SyncExternalServiceRequest) (*SyncExternalServiceResponse, error)
 	mustEmbedUnimplementedRepoUpdaterServiceServer()
 }
 
@@ -120,6 +133,9 @@ func (UnimplementedRepoUpdaterServiceServer) EnqueueChangesetSync(context.Contex
 }
 func (UnimplementedRepoUpdaterServiceServer) SchedulePermsSync(context.Context, *SchedulePermsSyncRequest) (*SchedulePermsSyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SchedulePermsSync not implemented")
+}
+func (UnimplementedRepoUpdaterServiceServer) SyncExternalService(context.Context, *SyncExternalServiceRequest) (*SyncExternalServiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SyncExternalService not implemented")
 }
 func (UnimplementedRepoUpdaterServiceServer) mustEmbedUnimplementedRepoUpdaterServiceServer() {}
 
@@ -224,6 +240,24 @@ func _RepoUpdaterService_SchedulePermsSync_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepoUpdaterService_SyncExternalService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncExternalServiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoUpdaterServiceServer).SyncExternalService(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoupdater.v1.RepoUpdaterService/SyncExternalService",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoUpdaterServiceServer).SyncExternalService(ctx, req.(*SyncExternalServiceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepoUpdaterService_ServiceDesc is the grpc.ServiceDesc for RepoUpdaterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -250,6 +284,10 @@ var RepoUpdaterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SchedulePermsSync",
 			Handler:    _RepoUpdaterService_SchedulePermsSync_Handler,
+		},
+		{
+			MethodName: "SyncExternalService",
+			Handler:    _RepoUpdaterService_SyncExternalService_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -16,6 +16,8 @@ service RepoUpdaterService {
   rpc EnqueueRepoUpdate(EnqueueRepoUpdateRequest) returns (EnqueueRepoUpdateResponse);
   rpc EnqueueChangesetSync(EnqueueChangesetSyncRequest) returns (EnqueueChangesetSyncResponse);
   rpc SchedulePermsSync(SchedulePermsSyncRequest) returns (SchedulePermsSyncResponse);
+// SyncExternalService requests the given external service to be synced.
+  rpc SyncExternalService(SyncExternalServiceRequest) returns (SyncExternalServiceResponse);
 }
 
 message RepoUpdateSchedulerInfoRequest {
@@ -169,3 +171,8 @@ message FetchPermsOptions {
 
 message SchedulePermsSyncResponse{}
 
+message SyncExternalServiceRequest {
+    int64 external_service_id = 1;
+}
+
+message SyncExternalServiceResponse {}
