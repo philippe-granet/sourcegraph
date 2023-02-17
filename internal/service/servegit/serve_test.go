@@ -1,6 +1,7 @@
 package servegit
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sourcegraph/log/logtest"
+
+	repo "github.com/sourcegraph/sourcegraph/internal/repos"
 )
 
 const testAddress = "test.local:3939"
@@ -34,8 +37,9 @@ func TestReposHandler(t *testing.T) {
 	}}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			root := gitInitRepos(t, tc.repos...)
 
+			root := gitInitRepos(t, tc.repos...)
+			privateRoot := filepath.Join("private", root)
 			h := (&Serve{
 				Logger: logtest.Scoped(t),
 				Addr:   testAddress,
@@ -44,7 +48,7 @@ func TestReposHandler(t *testing.T) {
 			var want []Repo
 			for _, name := range tc.repos {
 				isBare := strings.HasSuffix(name, ".bare")
-				uri := path.Join("/repos", name)
+				uri := path.Join("/repos", privateRoot, name)
 				clonePath := uri
 				if !isBare {
 					clonePath += "/.git"
@@ -74,6 +78,19 @@ func testReposHandler(t *testing.T, h http.Handler, repos []Repo, roots []string
 		return string(b)
 	}
 
+	post := func(path string, body []byte) string {
+		res, err := http.Post(ts.URL+path, "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+
 	// Check we have some known strings on the index page
 	index := get("/")
 	for _, sub := range []string{"http://" + testAddress, "/v1/list-repos", "/repos/"} {
@@ -82,14 +99,16 @@ func testReposHandler(t *testing.T, h http.Handler, repos []Repo, roots []string
 		}
 	}
 
-	// repos page will list the top-level dirs
-	list := get("/repos/")
-	for _, repo := range repos {
-		if path.Dir(repo.URI) != "/repos" {
-			continue
-		}
-		if !strings.Contains(repo.Name, "/") && !strings.Contains(list, repo.Name) {
-			t.Errorf("repos page does not contain substring %q", repo.Name)
+	for _, rootDir := range roots {
+		// repos page will list the top-level dirs
+		list := get(filepath.Join("/repos/", rootDir))
+		for _, repo := range repos {
+			if path.Dir(repo.URI) != "/repos" {
+				continue
+			}
+			if !strings.Contains(repo.Name, "/") && !strings.Contains(list, repo.Name) {
+				t.Errorf("repos page does not contain substring %q", repo.Name)
+			}
 		}
 	}
 
@@ -97,7 +116,11 @@ func testReposHandler(t *testing.T, h http.Handler, repos []Repo, roots []string
 	type Response struct{ Items []Repo }
 	var want, got Response
 	want.Items = repos
-	if err := json.Unmarshal([]byte(get("/v1/list-repos")), &got); err != nil {
+	reqBody, err := json.Marshal(repo.ListReposRequest{Roots: roots})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(post("/v1/list-repos", reqBody)), &got); err != nil {
 		t.Fatal(err)
 	}
 	opts := []cmp.Option{
