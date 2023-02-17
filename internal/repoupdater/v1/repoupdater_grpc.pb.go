@@ -24,6 +24,9 @@ const _ = grpc.SupportPackageIsVersion7
 type RepoUpdaterServiceClient interface {
 	RepoUpdateSchedulerInfo(ctx context.Context, in *RepoUpdateSchedulerInfoRequest, opts ...grpc.CallOption) (*RepoUpdateSchedulerInfoResponse, error)
 	RepoLookup(ctx context.Context, in *RepoLookupRequest, opts ...grpc.CallOption) (*RepoLookupResponse, error)
+	// EnqueueRepoUpdate requests that the named repository be updated in the near
+	// future. It does not wait for the update.
+	EnqueueRepoUpdate(ctx context.Context, in *EnqueueRepoUpdateRequest, opts ...grpc.CallOption) (*EnqueueRepoUpdateResponse, error)
 }
 
 type repoUpdaterServiceClient struct {
@@ -52,12 +55,24 @@ func (c *repoUpdaterServiceClient) RepoLookup(ctx context.Context, in *RepoLooku
 	return out, nil
 }
 
+func (c *repoUpdaterServiceClient) EnqueueRepoUpdate(ctx context.Context, in *EnqueueRepoUpdateRequest, opts ...grpc.CallOption) (*EnqueueRepoUpdateResponse, error) {
+	out := new(EnqueueRepoUpdateResponse)
+	err := c.cc.Invoke(ctx, "/repoupdater.v1.RepoUpdaterService/EnqueueRepoUpdate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepoUpdaterServiceServer is the server API for RepoUpdaterService service.
 // All implementations must embed UnimplementedRepoUpdaterServiceServer
 // for forward compatibility
 type RepoUpdaterServiceServer interface {
 	RepoUpdateSchedulerInfo(context.Context, *RepoUpdateSchedulerInfoRequest) (*RepoUpdateSchedulerInfoResponse, error)
 	RepoLookup(context.Context, *RepoLookupRequest) (*RepoLookupResponse, error)
+	// EnqueueRepoUpdate requests that the named repository be updated in the near
+	// future. It does not wait for the update.
+	EnqueueRepoUpdate(context.Context, *EnqueueRepoUpdateRequest) (*EnqueueRepoUpdateResponse, error)
 	mustEmbedUnimplementedRepoUpdaterServiceServer()
 }
 
@@ -70,6 +85,9 @@ func (UnimplementedRepoUpdaterServiceServer) RepoUpdateSchedulerInfo(context.Con
 }
 func (UnimplementedRepoUpdaterServiceServer) RepoLookup(context.Context, *RepoLookupRequest) (*RepoLookupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RepoLookup not implemented")
+}
+func (UnimplementedRepoUpdaterServiceServer) EnqueueRepoUpdate(context.Context, *EnqueueRepoUpdateRequest) (*EnqueueRepoUpdateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnqueueRepoUpdate not implemented")
 }
 func (UnimplementedRepoUpdaterServiceServer) mustEmbedUnimplementedRepoUpdaterServiceServer() {}
 
@@ -120,6 +138,24 @@ func _RepoUpdaterService_RepoLookup_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepoUpdaterService_EnqueueRepoUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnqueueRepoUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoUpdaterServiceServer).EnqueueRepoUpdate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoupdater.v1.RepoUpdaterService/EnqueueRepoUpdate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoUpdaterServiceServer).EnqueueRepoUpdate(ctx, req.(*EnqueueRepoUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepoUpdaterService_ServiceDesc is the grpc.ServiceDesc for RepoUpdaterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -134,6 +170,10 @@ var RepoUpdaterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RepoLookup",
 			Handler:    _RepoUpdaterService_RepoLookup_Handler,
+		},
+		{
+			MethodName: "EnqueueRepoUpdate",
+			Handler:    _RepoUpdaterService_EnqueueRepoUpdate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

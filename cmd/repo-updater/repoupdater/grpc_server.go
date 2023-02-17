@@ -2,10 +2,13 @@ package repoupdater
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/repoupdater/protocol"
 	proto "github.com/sourcegraph/sourcegraph/internal/repoupdater/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type RepoUpdaterServiceServer struct {
@@ -28,4 +31,21 @@ func (s *RepoUpdaterServiceServer) RepoLookup(ctx context.Context, req *proto.Re
 		return nil, err
 	}
 	return res.ToProto(), nil
+}
+
+func (s *RepoUpdaterServiceServer) EnqueueRepoUpdate(ctx context.Context, req *proto.EnqueueRepoUpdateRequest) (*proto.EnqueueRepoUpdateResponse, error) {
+	args := &protocol.RepoUpdateRequest{
+		Repo: api.RepoName(req.GetRepo()),
+	}
+	res, httpStatus, err := s.Server.enqueueRepoUpdate(ctx, args)
+	if err != nil {
+		if httpStatus == http.StatusNotFound {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, err
+	}
+	return &proto.EnqueueRepoUpdateResponse{
+		Id:   int32(res.ID),
+		Name: res.Name,
+	}, nil
 }
