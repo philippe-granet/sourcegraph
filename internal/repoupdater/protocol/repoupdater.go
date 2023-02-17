@@ -51,6 +51,26 @@ func (r *RepoUpdateSchedulerInfoResult) ToProto() *proto.RepoUpdateSchedulerInfo
 	return res
 }
 
+func (r *RepoUpdateSchedulerInfoResult) FromProto(p *proto.RepoUpdateSchedulerInfoResponse) {
+	if p.Schedule != nil {
+		r.Schedule = &RepoScheduleState{
+			Index:           int(p.Schedule.GetIndex()),
+			Total:           int(p.Schedule.GetTotal()),
+			IntervalSeconds: int(p.Schedule.GetIntervalSeconds()),
+			Due:             p.Schedule.GetDue().AsTime(),
+		}
+	}
+
+	if p.Queue != nil {
+		r.Queue = &RepoQueueState{
+			Index:    int(p.Queue.GetIndex()),
+			Total:    int(p.Queue.GetTotal()),
+			Updating: p.Queue.GetUpdating(),
+			Priority: int(p.Queue.GetPriority()),
+		}
+	}
+}
+
 type RepoScheduleState struct {
 	Index           int
 	Total           int
@@ -75,6 +95,13 @@ type RepoLookupArgs struct {
 	Update bool
 }
 
+func (r *RepoLookupArgs) ToProto() *proto.RepoLookupRequest {
+	return &proto.RepoLookupRequest{
+		Repo:   string(r.Repo),
+		Update: r.Update,
+	}
+}
+
 func (a *RepoLookupArgs) String() string {
 	return fmt.Sprintf("RepoLookupArgs{Repo: %s, Update: %t}", a.Repo, a.Update)
 }
@@ -95,6 +122,15 @@ func (r *RepoLookupResult) ToProto() *proto.RepoLookupResponse {
 		ErrorNotFound:               r.ErrorNotFound,
 		ErrorUnauthorized:           r.ErrorUnauthorized,
 		ErrorTemporarilyUnavailable: r.ErrorTemporarilyUnavailable,
+	}
+}
+
+func RepoLookupResultFromProto(p *proto.RepoLookupResponse) *RepoLookupResult {
+	return &RepoLookupResult{
+		Repo:                        RepoInfoFromProto(p.GetRepo()),
+		ErrorNotFound:               p.GetErrorNotFound(),
+		ErrorUnauthorized:           p.GetErrorUnauthorized(),
+		ErrorTemporarilyUnavailable: p.GetErrorTemporarilyUnavailable(),
 	}
 }
 
@@ -155,6 +191,24 @@ func (ri *RepoInfo) ToProto() *proto.RepoInfo {
 			Id:          ri.ExternalRepo.ID,
 			ServiceType: ri.ExternalRepo.ServiceType,
 			ServiceId:   ri.ExternalRepo.ServiceID,
+		},
+	}
+}
+
+func RepoInfoFromProto(p *proto.RepoInfo) *RepoInfo {
+	return &RepoInfo{
+		ID:          api.RepoID(p.GetId()),
+		Name:        api.RepoName(p.GetName()),
+		Description: p.GetDescription(),
+		Fork:        p.GetFork(),
+		Archived:    p.GetArchived(),
+		Private:     p.GetPrivate(),
+		VCS:         VCSInfoFromProto(p.GetVcsInfo()),
+		Links:       RepoLinksFromProto(p.GetLinks()),
+		ExternalRepo: api.ExternalRepoSpec{
+			ID:          p.GetExternalRepo().GetId(),
+			ServiceType: p.GetExternalRepo().GetServiceType(),
+			ServiceID:   p.GetExternalRepo().GetServiceId(),
 		},
 	}
 }
@@ -265,6 +319,12 @@ func (i *VCSInfo) ToProto() *proto.VCSInfo {
 	}
 }
 
+func VCSInfoFromProto(p *proto.VCSInfo) VCSInfo {
+	return VCSInfo{
+		URL: p.GetUrl(),
+	}
+}
+
 // RepoLinks contains URLs and URL patterns for objects in this repository.
 type RepoLinks struct {
 	Root   string // the repository's main (root) page URL
@@ -279,6 +339,15 @@ func (rl *RepoLinks) ToProto() *proto.RepoLinks {
 		Tree:   rl.Tree,
 		Blob:   rl.Blob,
 		Commit: rl.Commit,
+	}
+}
+
+func RepoLinksFromProto(p *proto.RepoLinks) *RepoLinks {
+	return &RepoLinks{
+		Root:   p.GetRoot(),
+		Tree:   p.GetTree(),
+		Blob:   p.GetBlob(),
+		Commit: p.GetCommit(),
 	}
 }
 

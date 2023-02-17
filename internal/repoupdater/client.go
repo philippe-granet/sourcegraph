@@ -16,6 +16,7 @@ import (
 
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/env"
+	internalgrpc "github.com/sourcegraph/sourcegraph/internal/grpc"
 	"github.com/sourcegraph/sourcegraph/internal/grpc/defaults"
 	"github.com/sourcegraph/sourcegraph/internal/httpcli"
 	"github.com/sourcegraph/sourcegraph/internal/repoupdater/protocol"
@@ -76,6 +77,21 @@ func (c *Client) RepoUpdateSchedulerInfo(
 	ctx context.Context,
 	args protocol.RepoUpdateSchedulerInfoArgs,
 ) (result *protocol.RepoUpdateSchedulerInfoResult, err error) {
+	if internalgrpc.IsGRPCEnabled(ctx) {
+		client, err := c.grpcClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+		req := &proto.RepoUpdateSchedulerInfoRequest{Id: int32(args.ID)}
+		resp, err := client.RepoUpdateSchedulerInfo(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		var result protocol.RepoUpdateSchedulerInfoResult
+		result.FromProto(resp)
+		return &result, nil
+	}
+
 	resp, err := c.httpPost(ctx, "repo-update-scheduler-info", args)
 	if err != nil {
 		return nil, err
@@ -115,6 +131,26 @@ func (c *Client) RepoLookup(
 	}()
 	if args.Repo != "" {
 		span.SetTag("Repo", string(args.Repo))
+	}
+
+	if internalgrpc.IsGRPCEnabled(ctx) {
+		client, err := c.grpcClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := client.RepoLookup(ctx, args.ToProto())
+		if err != nil {
+			return nil, errors.Wrapf(err, "RepoLookup for %+v failed", args)
+		}
+		switch {
+		case resp.GetErrorNotFound():
+			return nil, &ErrNotFound{Repo: args.Repo, IsNotFound: true}
+		case resp.GetErrorUnauthorized():
+			return nil, &ErrUnauthorized{Repo: args.Repo, NoAuthz: true}
+		case resp.GetErrorTemporarilyUnavailable():
+			return nil, &ErrTemporary{Repo: args.Repo, IsTemporary: true}
+		}
+		return protocol.RepoLookupResultFromProto(resp), nil
 	}
 
 	resp, err := c.httpPost(ctx, "repo-lookup", args)
