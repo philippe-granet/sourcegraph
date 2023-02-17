@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/sourcegraph/sourcegraph/internal/api"
+	"github.com/sourcegraph/sourcegraph/internal/authz"
 	"github.com/sourcegraph/sourcegraph/internal/repoupdater/protocol"
 	proto "github.com/sourcegraph/sourcegraph/internal/repoupdater/v1"
 	"google.golang.org/grpc/codes"
@@ -61,4 +62,30 @@ func (s *RepoUpdaterServiceServer) EnqueueChangesetSync(ctx context.Context, req
 	}
 
 	return &proto.EnqueueChangesetSyncResponse{}, s.Server.ChangesetSyncRegistry.EnqueueChangesetSyncs(ctx, req.Ids)
+}
+
+func (s *RepoUpdaterServiceServer) SchedulePermsSync(ctx context.Context, req *proto.SchedulePermsSyncRequest) (*proto.SchedulePermsSyncResponse, error) {
+	if s.Server.DatabaseBackedPermissionSyncerEnabled != nil && s.Server.DatabaseBackedPermissionSyncerEnabled(ctx) {
+		s.Server.Logger.Warn("Dropping schedule-perms-sync request because PermissionSyncWorker is enabled. This should not happen.")
+		return &proto.SchedulePermsSyncResponse{}, nil
+	}
+
+	if s.Server.PermsSyncer == nil {
+		return nil, status.Error(codes.Internal, "perms syncer not configured")
+	}
+
+	repoIDs := make([]api.RepoID, len(req.GetRepoIds()))
+	for i, id := range req.GetRepoIds() {
+		repoIDs[i] = api.RepoID(id)
+	}
+
+	if len(req.UserIds) == 0 && len(repoIDs) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "neither user IDs nor repo IDs was provided in request (must provide at least one)")
+	}
+
+	opts := authz.FetchPermsOptions{InvalidateCaches: req.GetOptions().GetInvalidateCaches()}
+	s.Server.PermsSyncer.ScheduleUsers(ctx, opts, req.UserIds...)
+	s.Server.PermsSyncer.ScheduleRepos(ctx, repoIDs...)
+
+	return &proto.SchedulePermsSyncResponse{}, nil
 }

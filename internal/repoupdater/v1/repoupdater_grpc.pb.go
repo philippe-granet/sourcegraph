@@ -30,6 +30,7 @@ type RepoUpdaterServiceClient interface {
 	// future. It does not wait for the update.
 	EnqueueRepoUpdate(ctx context.Context, in *EnqueueRepoUpdateRequest, opts ...grpc.CallOption) (*EnqueueRepoUpdateResponse, error)
 	EnqueueChangesetSync(ctx context.Context, in *EnqueueChangesetSyncRequest, opts ...grpc.CallOption) (*EnqueueChangesetSyncResponse, error)
+	SchedulePermsSync(ctx context.Context, in *SchedulePermsSyncRequest, opts ...grpc.CallOption) (*SchedulePermsSyncResponse, error)
 }
 
 type repoUpdaterServiceClient struct {
@@ -76,6 +77,15 @@ func (c *repoUpdaterServiceClient) EnqueueChangesetSync(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *repoUpdaterServiceClient) SchedulePermsSync(ctx context.Context, in *SchedulePermsSyncRequest, opts ...grpc.CallOption) (*SchedulePermsSyncResponse, error) {
+	out := new(SchedulePermsSyncResponse)
+	err := c.cc.Invoke(ctx, "/repoupdater.v1.RepoUpdaterService/SchedulePermsSync", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepoUpdaterServiceServer is the server API for RepoUpdaterService service.
 // All implementations must embed UnimplementedRepoUpdaterServiceServer
 // for forward compatibility
@@ -88,6 +98,7 @@ type RepoUpdaterServiceServer interface {
 	// future. It does not wait for the update.
 	EnqueueRepoUpdate(context.Context, *EnqueueRepoUpdateRequest) (*EnqueueRepoUpdateResponse, error)
 	EnqueueChangesetSync(context.Context, *EnqueueChangesetSyncRequest) (*EnqueueChangesetSyncResponse, error)
+	SchedulePermsSync(context.Context, *SchedulePermsSyncRequest) (*SchedulePermsSyncResponse, error)
 	mustEmbedUnimplementedRepoUpdaterServiceServer()
 }
 
@@ -106,6 +117,9 @@ func (UnimplementedRepoUpdaterServiceServer) EnqueueRepoUpdate(context.Context, 
 }
 func (UnimplementedRepoUpdaterServiceServer) EnqueueChangesetSync(context.Context, *EnqueueChangesetSyncRequest) (*EnqueueChangesetSyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EnqueueChangesetSync not implemented")
+}
+func (UnimplementedRepoUpdaterServiceServer) SchedulePermsSync(context.Context, *SchedulePermsSyncRequest) (*SchedulePermsSyncResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SchedulePermsSync not implemented")
 }
 func (UnimplementedRepoUpdaterServiceServer) mustEmbedUnimplementedRepoUpdaterServiceServer() {}
 
@@ -192,6 +206,24 @@ func _RepoUpdaterService_EnqueueChangesetSync_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepoUpdaterService_SchedulePermsSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SchedulePermsSyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoUpdaterServiceServer).SchedulePermsSync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoupdater.v1.RepoUpdaterService/SchedulePermsSync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoUpdaterServiceServer).SchedulePermsSync(ctx, req.(*SchedulePermsSyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepoUpdaterService_ServiceDesc is the grpc.ServiceDesc for RepoUpdaterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -214,6 +246,10 @@ var RepoUpdaterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "EnqueueChangesetSync",
 			Handler:    _RepoUpdaterService_EnqueueChangesetSync_Handler,
+		},
+		{
+			MethodName: "SchedulePermsSync",
+			Handler:    _RepoUpdaterService_SchedulePermsSync_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
