@@ -39,7 +39,6 @@ func TestReposHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			root := gitInitRepos(t, tc.repos...)
-			privateRoot := filepath.Join("private", root)
 			h := (&Serve{
 				Logger: logtest.Scoped(t),
 				Addr:   testAddress,
@@ -48,7 +47,7 @@ func TestReposHandler(t *testing.T) {
 			var want []Repo
 			for _, name := range tc.repos {
 				isBare := strings.HasSuffix(name, ".bare")
-				uri := path.Join("/repos", privateRoot, name)
+				uri := path.Join("/repos", root, name)
 				clonePath := uri
 				if !isBare {
 					clonePath += "/.git"
