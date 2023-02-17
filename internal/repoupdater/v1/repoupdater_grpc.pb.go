@@ -22,11 +22,14 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RepoUpdaterServiceClient interface {
+	// RepoUpdateSchedulerInfo returns information about the state of the repo in the update scheduler.
 	RepoUpdateSchedulerInfo(ctx context.Context, in *RepoUpdateSchedulerInfoRequest, opts ...grpc.CallOption) (*RepoUpdateSchedulerInfoResponse, error)
+	// RepoLookup retrieves information about the repository on repoupdater.
 	RepoLookup(ctx context.Context, in *RepoLookupRequest, opts ...grpc.CallOption) (*RepoLookupResponse, error)
 	// EnqueueRepoUpdate requests that the named repository be updated in the near
 	// future. It does not wait for the update.
 	EnqueueRepoUpdate(ctx context.Context, in *EnqueueRepoUpdateRequest, opts ...grpc.CallOption) (*EnqueueRepoUpdateResponse, error)
+	EnqueueChangesetSync(ctx context.Context, in *EnqueueChangesetSyncRequest, opts ...grpc.CallOption) (*EnqueueChangesetSyncResponse, error)
 }
 
 type repoUpdaterServiceClient struct {
@@ -64,15 +67,27 @@ func (c *repoUpdaterServiceClient) EnqueueRepoUpdate(ctx context.Context, in *En
 	return out, nil
 }
 
+func (c *repoUpdaterServiceClient) EnqueueChangesetSync(ctx context.Context, in *EnqueueChangesetSyncRequest, opts ...grpc.CallOption) (*EnqueueChangesetSyncResponse, error) {
+	out := new(EnqueueChangesetSyncResponse)
+	err := c.cc.Invoke(ctx, "/repoupdater.v1.RepoUpdaterService/EnqueueChangesetSync", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepoUpdaterServiceServer is the server API for RepoUpdaterService service.
 // All implementations must embed UnimplementedRepoUpdaterServiceServer
 // for forward compatibility
 type RepoUpdaterServiceServer interface {
+	// RepoUpdateSchedulerInfo returns information about the state of the repo in the update scheduler.
 	RepoUpdateSchedulerInfo(context.Context, *RepoUpdateSchedulerInfoRequest) (*RepoUpdateSchedulerInfoResponse, error)
+	// RepoLookup retrieves information about the repository on repoupdater.
 	RepoLookup(context.Context, *RepoLookupRequest) (*RepoLookupResponse, error)
 	// EnqueueRepoUpdate requests that the named repository be updated in the near
 	// future. It does not wait for the update.
 	EnqueueRepoUpdate(context.Context, *EnqueueRepoUpdateRequest) (*EnqueueRepoUpdateResponse, error)
+	EnqueueChangesetSync(context.Context, *EnqueueChangesetSyncRequest) (*EnqueueChangesetSyncResponse, error)
 	mustEmbedUnimplementedRepoUpdaterServiceServer()
 }
 
@@ -88,6 +103,9 @@ func (UnimplementedRepoUpdaterServiceServer) RepoLookup(context.Context, *RepoLo
 }
 func (UnimplementedRepoUpdaterServiceServer) EnqueueRepoUpdate(context.Context, *EnqueueRepoUpdateRequest) (*EnqueueRepoUpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EnqueueRepoUpdate not implemented")
+}
+func (UnimplementedRepoUpdaterServiceServer) EnqueueChangesetSync(context.Context, *EnqueueChangesetSyncRequest) (*EnqueueChangesetSyncResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnqueueChangesetSync not implemented")
 }
 func (UnimplementedRepoUpdaterServiceServer) mustEmbedUnimplementedRepoUpdaterServiceServer() {}
 
@@ -156,6 +174,24 @@ func _RepoUpdaterService_EnqueueRepoUpdate_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepoUpdaterService_EnqueueChangesetSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnqueueChangesetSyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepoUpdaterServiceServer).EnqueueChangesetSync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/repoupdater.v1.RepoUpdaterService/EnqueueChangesetSync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepoUpdaterServiceServer).EnqueueChangesetSync(ctx, req.(*EnqueueChangesetSyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepoUpdaterService_ServiceDesc is the grpc.ServiceDesc for RepoUpdaterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -174,6 +210,10 @@ var RepoUpdaterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "EnqueueRepoUpdate",
 			Handler:    _RepoUpdaterService_EnqueueRepoUpdate_Handler,
+		},
+		{
+			MethodName: "EnqueueChangesetSync",
+			Handler:    _RepoUpdaterService_EnqueueChangesetSync_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

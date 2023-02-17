@@ -14,6 +14,7 @@ service RepoUpdaterService {
   // EnqueueRepoUpdate requests that the named repository be updated in the near
   // future. It does not wait for the update.
   rpc EnqueueRepoUpdate(EnqueueRepoUpdateRequest) returns (EnqueueRepoUpdateResponse);
+  rpc EnqueueChangesetSync(EnqueueChangesetSyncRequest) returns (EnqueueChangesetSyncResponse);
 }
 
 message RepoUpdateSchedulerInfoRequest {
@@ -141,3 +142,9 @@ message EnqueueRepoUpdateResponse {
   // Name of the repo that got an update request.
   string name = 2;
 }
+
+message EnqueueChangesetSyncRequest {
+    repeated int64 ids = 1;
+}
+
+message EnqueueChangesetSyncResponse {}

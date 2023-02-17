@@ -49,3 +49,16 @@ func (s *RepoUpdaterServiceServer) EnqueueRepoUpdate(ctx context.Context, req *p
 		Name: res.Name,
 	}, nil
 }
+
+func (s *RepoUpdaterServiceServer) EnqueueChangesetSync(ctx context.Context, req *proto.EnqueueChangesetSyncRequest) (*proto.EnqueueChangesetSyncResponse, error) {
+	if s.Server.ChangesetSyncRegistry == nil {
+		s.Server.Logger.Warn("ChangesetSyncer is nil")
+		return nil, status.Error(codes.Internal, "changeset syncer is not configured")
+	}
+
+	if len(req.Ids) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no ids provided")
+	}
+
+	return &proto.EnqueueChangesetSyncResponse{}, s.Server.ChangesetSyncRegistry.EnqueueChangesetSyncs(ctx, req.Ids)
+}
