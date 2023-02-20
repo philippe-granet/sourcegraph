@@ -1407,6 +1407,12 @@ type Query {
         after: String
     ): PackageRepoReferenceConnection!
 
+    packageReposMatches(
+        matcher: PackageVersionOrNameMatcher!
+        first: Int
+        after: String
+    ): PackageRepoReferenceConnection!
+
     """
     Looks up a Phabricator repository by name.
     """
@@ -3584,6 +3590,22 @@ type PackageRepoReferenceVersion {
     The version string. Not guaranteed to be semver or any other format.
     """
     version: String!
+}
+
+input PackageVersionOrNameMatcher {
+    packageReferenceKind: PackageRepoReferenceKind!
+    nameMatcher: PackageNameMatcher
+    versionMatcher: PackageVersionMatcher
+}
+
+input PackageNameMatcher {
+    packageGlob: String!
+}
+
+input PackageVersionMatcher {
+    packageName: String!
+
+    versionGlob: String!
 }
 
 """
