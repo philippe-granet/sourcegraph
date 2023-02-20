@@ -1577,9 +1577,9 @@ type OtherExternalServiceConnection struct {
 	//
 	// It is important that the Sourcegraph repository name generated with this pattern be unique to this code host. If different code hosts generate repository names that collide, Sourcegraph's behavior is undefined.
 	RepositoryPathPattern string `json:"repositoryPathPattern,omitempty"`
-	Url                   string `json:"url,omitempty"`
 	// Roots description: For use with serve-git: The root directories to walk when discovering git repositories to mirror. More documentation here: https://docs.sourcegraph.com/admin/external_service/src_serve_git
-	Roots []string `json:"roots"`
+	Roots []string `json:"roots,omitempty"`
+	Url   string   `json:"url,omitempty"`
 }
 type OutputVariable struct {
 	// Format description: The expected format of the output. If set, the output is being parsed in that format before being stored in the var. If not set, 'text' is assumed to the format.

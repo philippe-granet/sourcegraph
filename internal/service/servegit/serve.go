@@ -148,7 +148,6 @@ func (s *Serve) handler() http.Handler {
 			}
 		}
 		w.WriteHeader(http.StatusNoContent)
-		return
 	})))
 
 	return http.HandlerFunc(mux.ServeHTTP)
