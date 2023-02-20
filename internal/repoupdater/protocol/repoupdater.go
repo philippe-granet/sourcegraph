@@ -368,6 +368,13 @@ type RepoUpdateResponse struct {
 	Name string `json:"name"`
 }
 
+func RepoUpdateResponseFromProto(p *proto.EnqueueRepoUpdateResponse) *RepoUpdateResponse {
+	return &RepoUpdateResponse{
+		ID:   api.RepoID(p.GetId()),
+		Name: p.GetName(),
+	}
+}
+
 func (a *RepoUpdateResponse) String() string {
 	return fmt.Sprintf("RepoUpdateResponse{ID: %d Name: %s}", a.ID, a.Name)
 }
@@ -391,6 +398,23 @@ type PermsSyncRequest struct {
 	Reason            database.PermissionSyncJobReason `json:"reason"`
 	TriggeredByUserID int32                            `json:"triggered_by_user_id"`
 	ProcessAfter      time.Time                        `json:"process_after"`
+}
+
+func (p *PermsSyncRequest) ToProto() *proto.SchedulePermsSyncRequest {
+	repoIDs := make([]int32, len(p.RepoIDs))
+	for i, id := range p.RepoIDs {
+		repoIDs[i] = int32(id)
+	}
+	return &proto.SchedulePermsSyncRequest{
+		UserIds: p.UserIDs,
+		RepoIds: repoIDs,
+		Options: &proto.FetchPermsOptions{
+			InvalidateCaches: p.Options.InvalidateCaches,
+		},
+		Reason:            string(p.Reason),
+		TriggeredByUserId: p.TriggeredByUserID,
+		ProcessAfter:      timestamppb.New(p.ProcessAfter),
+	}
 }
 
 // PermsSyncResponse is a response to sync permissions.

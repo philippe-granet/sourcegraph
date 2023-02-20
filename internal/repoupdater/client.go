@@ -12,6 +12,8 @@ import (
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go/ext"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/env"
@@ -198,6 +200,24 @@ func (c *Client) EnqueueRepoUpdate(ctx context.Context, repo api.RepoName) (*pro
 		return MockEnqueueRepoUpdate(ctx, repo)
 	}
 
+	if internalgrpc.IsGRPCEnabled(ctx) {
+		client, err := grpcClient()
+		if err != nil {
+			return nil, err
+		}
+
+		req := proto.EnqueueRepoUpdateRequest{Repo: string(repo)}
+		resp, err := client.EnqueueRepoUpdate(ctx, &req)
+		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				return nil, &repoNotFoundError{repo: string(repo), responseBody: err.Error()}
+			}
+			return nil, err
+		}
+
+		return protocol.RepoUpdateResponseFromProto(resp), nil
+	}
+
 	req := &protocol.RepoUpdateRequest{
 		Repo: repo,
 	}
@@ -243,6 +263,17 @@ func (c *Client) EnqueueChangesetSync(ctx context.Context, ids []int64) error {
 		return MockEnqueueChangesetSync(ctx, ids)
 	}
 
+	if internalgrpc.IsGRPCEnabled(ctx) {
+		client, err := grpcClient()
+		if err != nil {
+			return err
+		}
+
+		// empty response can be ignored
+		_, err = client.EnqueueChangesetSync(ctx, &proto.EnqueueChangesetSyncRequest{Ids: ids})
+		return err
+	}
+
 	req := protocol.ChangesetSyncRequest{IDs: ids}
 	resp, err := c.httpPost(ctx, "enqueue-changeset-sync", req)
 	if err != nil {
@@ -274,6 +305,16 @@ var MockSchedulePermsSync func(ctx context.Context, args protocol.PermsSyncReque
 func (c *Client) SchedulePermsSync(ctx context.Context, args protocol.PermsSyncRequest) error {
 	if MockSchedulePermsSync != nil {
 		return MockSchedulePermsSync(ctx, args)
+	}
+
+	if internalgrpc.IsGRPCEnabled(ctx) {
+		client, err := grpcClient()
+		if err != nil {
+			return err
+		}
+
+		_, err = client.SchedulePermsSync(ctx, args.ToProto())
+		return err
 	}
 
 	resp, err := c.httpPost(ctx, "schedule-perms-sync", args)
@@ -308,6 +349,17 @@ func (c *Client) SyncExternalService(ctx context.Context, externalServiceID int6
 	if MockSyncExternalService != nil {
 		return MockSyncExternalService(ctx, externalServiceID)
 	}
+
+	if internalgrpc.IsGRPCEnabled(ctx) {
+		client, err := grpcClient()
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = client.SyncExternalService(ctx, &proto.SyncExternalServiceRequest{ExternalServiceId: externalServiceID})
+		return nil, err
+	}
+
 	req := &protocol.ExternalServiceSyncRequest{ExternalServiceID: externalServiceID}
 	resp, err := c.httpPost(ctx, "sync-external-service", req)
 	if err != nil {
