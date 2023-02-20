@@ -51,7 +51,9 @@ func (r *RepoUpdateSchedulerInfoResult) ToProto() *proto.RepoUpdateSchedulerInfo
 	return res
 }
 
-func (r *RepoUpdateSchedulerInfoResult) FromProto(p *proto.RepoUpdateSchedulerInfoResponse) {
+func RepoUpdateSchedulerInfoResultFromProto(p *proto.RepoUpdateSchedulerInfoResponse) *RepoUpdateSchedulerInfoResult {
+	r := &RepoUpdateSchedulerInfoResult{}
+
 	if p.Schedule != nil {
 		r.Schedule = &RepoScheduleState{
 			Index:           int(p.Schedule.GetIndex()),
@@ -69,6 +71,8 @@ func (r *RepoUpdateSchedulerInfoResult) FromProto(p *proto.RepoUpdateSchedulerIn
 			Priority: int(p.Queue.GetPriority()),
 		}
 	}
+
+	return r
 }
 
 type RepoScheduleState struct {

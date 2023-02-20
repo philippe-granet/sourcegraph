@@ -84,9 +84,7 @@ func (c *Client) RepoUpdateSchedulerInfo(
 		if err != nil {
 			return nil, err
 		}
-		var result protocol.RepoUpdateSchedulerInfoResult
-		result.FromProto(resp)
-		return &result, nil
+		return protocol.RepoUpdateSchedulerInfoResultFromProto(resp), nil
 	}
 
 	resp, err := c.httpPost(ctx, "repo-update-scheduler-info", args)
