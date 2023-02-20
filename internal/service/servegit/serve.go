@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/sourcegraph/log"
-	"github.com/sourcegraph/sourcegraph/internal/repos"
 	"github.com/sourcegraph/sourcegraph/lib/errors"
 	"github.com/sourcegraph/sourcegraph/lib/gitservice"
 )
@@ -105,7 +104,7 @@ func (s *Serve) handler() http.Handler {
 	})
 
 	mux.HandleFunc("/v1/list-repos", func(w http.ResponseWriter, r *http.Request) {
-		var req repos.ListReposRequest
+		var req ListReposRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -129,10 +128,9 @@ func (s *Serve) handler() http.Handler {
 		_ = enc.Encode(&resp)
 	})
 
-	fs := http.FileServer(http.Dir(filepath.Separator))
 	svc := &gitservice.Handler{
 		Dir: func(name string) string {
-			return filepath.Join(string(filepath.Separator), filepath.Clean(name))
+			return filepath.Join(string(filepath.Separator), filepath.FromSlash(name))
 		},
 		Trace: func(ctx context.Context, svc, repo, protocol string) func(error) {
 			start := time.Now()
@@ -149,7 +147,8 @@ func (s *Serve) handler() http.Handler {
 				return
 			}
 		}
-		fs.ServeHTTP(w, r)
+		w.WriteHeader(http.StatusNoContent)
+		return
 	})))
 
 	return http.HandlerFunc(mux.ServeHTTP)
@@ -307,4 +306,8 @@ func explainAddr(addr string) string {
 See https://docs.sourcegraph.com/admin/external_service/src_serve_git for
 instructions to configure in Sourcegraph.
 `, addr)
+}
+
+type ListReposRequest struct {
+	Roots []string `json:"roots"`
 }

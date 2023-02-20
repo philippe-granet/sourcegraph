@@ -37,10 +37,6 @@ type (
 		Name      string `json:"name"`
 		ClonePath string `json:"clonePath"`
 	}
-
-	ListReposRequest struct {
-		Roots []string `json:"roots"`
-	}
 )
 
 // NewOtherSource returns a new OtherSource from the given external service.
@@ -176,11 +172,11 @@ func (s OtherSource) otherRepoFromCloneURL(urn string, u *url.URL) (*types.Repo,
 }
 
 func (s OtherSource) srcExpose(ctx context.Context) ([]*types.Repo, error) {
-	reqBody, err := json.Marshal(ListReposRequest{Roots: s.conn.Roots})
+	reqBody, err := json.Marshal(map[string]any{"roots": s.conn.Roots})
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", s.conn.Url+"/v1/list-repos", bytes.NewReader(reqBody))
+	req, err := http.NewRequest("POST", s.conn.Url+"/v1/list-repos", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, err
 	}

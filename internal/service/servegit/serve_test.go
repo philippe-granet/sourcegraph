@@ -16,8 +16,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sourcegraph/log/logtest"
-
-	repo "github.com/sourcegraph/sourcegraph/internal/repos"
 )
 
 const testAddress = "test.local:3939"
@@ -39,6 +37,14 @@ func TestReposHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			root := gitInitRepos(t, tc.repos...)
+
+			// os may store temp cache directories under /private
+			parent := "/private"
+			_, err := os.ReadDir(parent + root)
+			if err == nil {
+				root = filepath.Join(parent, filepath.FromSlash(root))
+			}
+
 			h := (&Serve{
 				Logger: logtest.Scoped(t),
 				Addr:   testAddress,
@@ -115,7 +121,7 @@ func testReposHandler(t *testing.T, h http.Handler, repos []Repo, roots []string
 	type Response struct{ Items []Repo }
 	var want, got Response
 	want.Items = repos
-	reqBody, err := json.Marshal(repo.ListReposRequest{Roots: roots})
+	reqBody, err := json.Marshal(ListReposRequest{Roots: roots})
 	if err != nil {
 		t.Fatal(err)
 	}
