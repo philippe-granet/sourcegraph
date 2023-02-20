@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go/ext"
@@ -21,16 +20,35 @@ import (
 	"github.com/sourcegraph/sourcegraph/internal/httpcli"
 	"github.com/sourcegraph/sourcegraph/internal/repoupdater/protocol"
 	proto "github.com/sourcegraph/sourcegraph/internal/repoupdater/v1"
+	"github.com/sourcegraph/sourcegraph/internal/syncx"
 	"github.com/sourcegraph/sourcegraph/internal/trace/ot"
 	"github.com/sourcegraph/sourcegraph/lib/errors"
 )
 
-// DefaultClient is the default Client. Unless overwritten, it is
-// connected to the server specified by the REPO_UPDATER_URL
-// environment variable.
-var DefaultClient = NewClient(env.Get("REPO_UPDATER_URL", "http://repo-updater:3182", "repo-updater server URL"))
+var (
+	repoUpdaterURL = env.Get("REPO_UPDATER_URL", "http://repo-updater:3182", "repo-updater server URL")
 
-var defaultDoer, _ = httpcli.NewInternalClientFactory("repoupdater").Doer()
+	grpcClient = syncx.OnceValues(func() (proto.RepoUpdaterServiceClient, error) {
+		u, err := url.Parse(repoUpdaterURL)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: how important is it to use a context here?
+		conn, err := grpc.Dial(u.Host, defaults.DialOptions()...)
+		if err != nil {
+			return nil, err
+		}
+
+		return proto.NewRepoUpdaterServiceClient(conn), nil
+	})
+
+	defaultDoer, _ = httpcli.NewInternalClientFactory("repoupdater").Doer()
+
+	// DefaultClient is the default Client. Unless overwritten, it is
+	// connected to the server specified by the REPO_UPDATER_URL
+	// environment variable.
+	DefaultClient = NewClient(repoUpdaterURL)
+)
 
 // Client is a repoupdater client.
 type Client struct {
@@ -39,12 +57,6 @@ type Client struct {
 
 	// HTTP client to use
 	HTTPClient httpcli.Doer
-
-	// Client connection for gRPC requests.
-	// Popualted lazily by grpcClient. Do not use directly.
-	clientOnce sync.Once
-	client     proto.RepoUpdaterServiceClient
-	clientErr  error
 }
 
 // NewClient will initiate a new repoupdater Client with the given serverURL.
@@ -55,30 +67,13 @@ func NewClient(serverURL string) *Client {
 	}
 }
 
-func (c *Client) grpcClient(ctx context.Context) (proto.RepoUpdaterServiceClient, error) {
-	c.clientOnce.Do(func() {
-		u, err := url.Parse(c.URL)
-		if err != nil {
-			c.clientErr = err
-			return
-		}
-		cc, err := grpc.DialContext(ctx, u.Host, defaults.DialOptions()...)
-		if err != nil {
-			c.clientErr = err
-			return
-		}
-		c.client = proto.NewRepoUpdaterServiceClient(cc)
-	})
-	return c.client, c.clientErr
-}
-
 // RepoUpdateSchedulerInfo returns information about the state of the repo in the update scheduler.
 func (c *Client) RepoUpdateSchedulerInfo(
 	ctx context.Context,
 	args protocol.RepoUpdateSchedulerInfoArgs,
 ) (result *protocol.RepoUpdateSchedulerInfoResult, err error) {
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := c.grpcClient(ctx)
+		client, err := grpcClient()
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +129,7 @@ func (c *Client) RepoLookup(
 	}
 
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := c.grpcClient(ctx)
+		client, err := grpcClient()
 		if err != nil {
 			return nil, err
 		}
