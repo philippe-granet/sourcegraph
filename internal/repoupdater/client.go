@@ -311,6 +311,7 @@ func (c *Client) SchedulePermsSync(ctx context.Context, args protocol.PermsSyncR
 			return err
 		}
 
+		// empty response can be ignored
 		_, err = client.SchedulePermsSync(ctx, args.ToProto())
 		return err
 	}
@@ -354,6 +355,7 @@ func (c *Client) SyncExternalService(ctx context.Context, externalServiceID int6
 			return nil, err
 		}
 
+		// empty response can be ignored
 		_, err = client.SyncExternalService(ctx, &proto.SyncExternalServiceRequest{ExternalServiceId: externalServiceID})
 		return nil, err
 	}
