@@ -162,7 +162,7 @@ func (r *NodeResolver) ToExternalService() (*externalServiceResolver, bool) {
 }
 
 func (r *NodeResolver) ToExternalServiceRepository() (*externalServiceRepositoryResolver, bool) {
-	n, ok := r.Node.(*externalServiceSourceRepoResolver)
+	n, ok := r.Node.(*externalServiceRepositoryResolver)
 	return n, ok
 }
 

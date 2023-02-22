@@ -474,16 +474,16 @@ func (r *externalServiceRepositoryConnectionResolver) compute(ctx context.Contex
 	return r.nodes, r.totalCount, r.err
 }
 
-func (r *externalServiceRepositoryConnectionResolver) Nodes(ctx context.Context) ([]*externalServiceSourceRepoResolver, error) {
+func (r *externalServiceRepositoryConnectionResolver) Nodes(ctx context.Context) ([]*externalServiceRepositoryResolver, error) {
 	sourceRepos, totalCount, err := r.compute(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	nodes := make([]*externalServiceSourceRepoResolver, totalCount)
+	nodes := make([]*externalServiceRepositoryResolver, totalCount)
 	for i, j := range sourceRepos {
-		nodes[i] = &externalServiceSourceRepoResolver{
-			srcRepo: j,
+		nodes[i] = &externalServiceRepositoryResolver{
+			repo: j,
 		}
 	}
 
@@ -503,20 +503,20 @@ func (r *externalServiceRepositoryConnectionResolver) PageInfo(ctx context.Conte
 	return graphqlutil.HasNextPage(len(jobs) != int(totalCount)), nil
 }
 
-type externalServiceSourceRepoResolver struct {
-	srcRepo *types.ExternalServiceRepository
+type externalServiceRepositoryResolver struct {
+	repo *types.ExternalServiceRepository
 }
 
-func (r *externalServiceSourceRepoResolver) ID() graphql.ID {
-	return relay.MarshalID("ExternalServiceSourceRepo", r.srcRepo)
+func (r *externalServiceRepositoryResolver) ID() graphql.ID {
+	return relay.MarshalID("ExternalServiceSourceRepo", r.repo)
 }
 
-func (r *externalServiceSourceRepoResolver) Name() string {
-	return string(r.srcRepo.Name)
+func (r *externalServiceRepositoryResolver) Name() string {
+	return string(r.repo.Name)
 }
 
-func (r *externalServiceSourceRepoResolver) ExternalID() string {
-	return r.srcRepo.ExternalID
+func (r *externalServiceRepositoryResolver) ExternalID() string {
+	return r.repo.ExternalID
 }
 
 func (r *externalServiceNamespaceConnectionResolver) compute(ctx context.Context) ([]*types.ExternalServiceNamespace, int32, error) {

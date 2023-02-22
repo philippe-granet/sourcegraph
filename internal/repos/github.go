@@ -314,8 +314,10 @@ func (s *GitHubSource) fetchReposQuery(ctx context.Context, query string, first 
 	}
 
 	queryWithExclude := buildExcludeClause.String()
+	repoQuery := repositoryQuery{Query: queryWithExclude, First: first, Searcher: s.v4Client, Logger: s.logger}
+
 	go func() {
-		s.listSearch(ctx, queryWithExclude, first, true, unfiltered)
+		repoQuery.DoSingleRequest(ctx, unfiltered)
 		close(unfiltered)
 	}()
 
@@ -337,7 +339,7 @@ func (s *GitHubSource) fetchReposAffiliated(ctx context.Context, first int, excl
 	// request larger page of results to account for exclusion taking effect afterwards
 	bufferedFirst := first + len(excludedRepos)
 	go func() {
-		s.listAffiliated(ctx, bufferedFirst, unfiltered)
+		s.listAffiliatedPage(ctx, bufferedFirst, unfiltered)
 		close(unfiltered)
 	}()
 
@@ -355,7 +357,7 @@ func (s *GitHubSource) fetchReposAffiliated(ctx context.Context, first int, excl
 	s.logger.Debug("fetch github repos by affiliation", log.Int("excluded repos count", len(excludedRepos)))
 	for res := range unfiltered {
 		if first < 1 {
-			continue // drain the remaining github results
+			continue // drain the remaining githubResults from unfiltered
 		}
 		if res.err != nil {
 			results <- SourceResult{Source: s, Err: res.err}
@@ -772,7 +774,7 @@ func (s *GitHubSource) listPublicArchivedRepos(ctx context.Context, results chan
 // It returns the repositories affiliated with the client token by hitting the /user/repos
 // endpoint.
 //
-// Affiliation is present if the user: (1) owns the repo, (2) is apart of an org that
+// Affiliation is present if the user: (1) owns the repo, (2) is a part of an org that
 // the repo belongs to, or (3) is a collaborator.
 func (s *GitHubSource) listAffiliated(ctx context.Context, results chan *githubResult) {
 	s.paginate(ctx, results, func(page int) (repos []*github.Repository, hasNext bool, cost int, err error) {
@@ -790,15 +792,32 @@ func (s *GitHubSource) listAffiliated(ctx context.Context, results chan *githubR
 		if s.useGitHubApp {
 			return s.v3Client.ListInstallationRepositories(ctx, page)
 		}
-		return s.v3Client.ListAffiliatedRepositories(ctx, github.VisibilityAll, page)
+		return s.v3Client.ListAffiliatedRepositories(ctx, github.VisibilityAll, page, 100)
 	})
+}
+
+func (s *GitHubSource) listAffiliatedPage(ctx context.Context, first int, results chan *githubResult) {
+	repos, _, _, err := s.v3Client.ListAffiliatedRepositories(ctx, github.VisibilityAll, 0, first)
+	if err != nil {
+		results <- &githubResult{err: err}
+		return
+	}
+
+	for _, r := range repos {
+		if err := ctx.Err(); err != nil {
+			results <- &githubResult{err: err}
+			return
+		}
+
+		results <- &githubResult{repo: r}
+	}
 }
 
 // listSearch handles the `repositoryQuery` config option when a keyword is not present.
 // It returns the repositories matching a GitHub's advanced repository search query
 // via the GraphQL API.
 func (s *GitHubSource) listSearch(ctx context.Context, q string, results chan *githubResult) {
-	(&repositoryQuery{Query: q, Searcher: s.v4Client, Logger: s.logger}).Do(ctx, results)
+	(&repositoryQuery{Query: q, Searcher: s.v4Client, Logger: s.logger}).DoWithRefinedWindow(ctx, results)
 }
 
 // GitHub was founded on February 2008, so this minimum date covers all repos
@@ -828,7 +847,36 @@ type repositoryQuery struct {
 	Logger   log.Logger
 }
 
-func (q *repositoryQuery) Do(ctx context.Context, results chan *githubResult) {
+// DoWithRefinedWindow attempts to retrieve all machine repositories by refining the window of acceptable Created dates
+// to smaller windows and re-running the search (down to a minimum window size)
+// and exiting once all repositories are returned.
+func (q *repositoryQuery) DoWithRefinedWindow(ctx context.Context, results chan *githubResult) {
+	doRefine := func(q *repositoryQuery, res *github.SearchReposResults) bool {
+		return res.TotalCount > q.Limit
+	}
+
+	exit := func(q *repositoryQuery) bool {
+		return !q.Next()
+	}
+
+	q.Do(ctx, doRefine, exit, results)
+}
+
+// DoSingleRequest accepts the first n results and does not refine the search window on Created date.
+// Missing some repositories which match the criteria is acceptable.
+func (q *repositoryQuery) DoSingleRequest(ctx context.Context, results chan *githubResult) {
+	doRefine := func(q *repositoryQuery, res *github.SearchReposResults) bool {
+		return false
+	}
+
+	exit := func(q *repositoryQuery) bool {
+		return true
+	}
+
+	q.Do(ctx, doRefine, exit, results)
+}
+
+func (q *repositoryQuery) Do(ctx context.Context, doRefine func(*repositoryQuery, *github.SearchReposResults) bool, exit func(*repositoryQuery) bool, results chan *githubResult) {
 	if q.First == 0 {
 		q.First = 100
 	}
@@ -864,7 +912,7 @@ func (q *repositoryQuery) Do(ctx context.Context, results chan *githubResult) {
 			return
 		}
 
-		if res.TotalCount > q.Limit {
+		if doRefine(q, &res) {
 			q.Logger.Info(
 				"repositoryQuery matched more than limit, refining",
 				log.Int("limit", q.Limit),
@@ -899,7 +947,7 @@ func (q *repositoryQuery) Do(ctx context.Context, results chan *githubResult) {
 
 		if res.EndCursor != "" {
 			q.Cursor = res.EndCursor
-		} else if !q.Next() {
+		} else if exit(q) {
 			return
 		}
 	}
@@ -1106,7 +1154,7 @@ func (s *GitHubSource) AffiliatedRepositories(ctx context.Context) ([]types.Code
 		if s.useGitHubApp {
 			repos, hasNextPage, _, err = s.v3Client.ListInstallationRepositories(ctx, page)
 		} else {
-			repos, hasNextPage, _, err = s.v3Client.ListAffiliatedRepositories(ctx, github.VisibilityAll, page)
+			repos, hasNextPage, _, err = s.v3Client.ListAffiliatedRepositories(ctx, github.VisibilityAll, page, 100)
 		}
 		if err != nil {
 			return nil, err
