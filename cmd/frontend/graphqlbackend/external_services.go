@@ -449,45 +449,33 @@ func (r *schemaResolver) CancelExternalServiceSync(ctx context.Context, args *ca
 }
 
 type externalServiceRepositoriesArgs struct {
-	Input externalServiceRepositoriesInput
-}
-
-type externalServiceRepositoriesInput struct {
 	Kind         string
 	Token        string
 	Url          string
 	Query        string
 	ExcludeRepos []string
-	// ExcludeNamespaces []string
-	Limit *int32
+	First        *int32
 }
 
-func (r *schemaResolver) ExternalServiceRepositories(ctx context.Context, args *externalServiceRepositoriesArgs) (*externalServiceSourceRepositoryConnectionResolver, error) {
-	start := time.Now()
-	var err error
-	defer reportExternalServiceDuration(start, Add, &err)
-
+func (r *schemaResolver) ExternalServiceRepositories(ctx context.Context, args *externalServiceRepositoriesArgs) (*externalServiceRepositoryConnectionResolver, error) {
 	if auth.CheckCurrentUserIsSiteAdmin(ctx, r.db) != nil {
-		err = auth.ErrMustBeSiteAdmin
-		return nil, err
+		return nil, auth.ErrMustBeSiteAdmin
 	}
 
-	res := externalServiceSourceRepositoryConnectionResolver{
+	return &externalServiceRepositoryConnectionResolver{
 		db:                r.db,
 		args:              args,
 		repoupdaterClient: r.repoupdaterClient,
-	}
-	return &res, err
+	}, nil
 }
 
-type externalServiceSourceRepositoryConnectionResolver struct {
+type externalServiceRepositoryConnectionResolver struct {
 	args              *externalServiceRepositoriesArgs
 	db                database.DB
 	repoupdaterClient *repoupdater.Client
-	// limit             int
 
 	once       sync.Once
-	nodes      []*types.ExternalServiceSourceRepo
+	nodes      []*types.ExternalServiceRepository
 	totalCount int32
 	err        error
 }

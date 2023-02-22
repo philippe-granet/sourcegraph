@@ -287,7 +287,7 @@ type ExternalServiceRepositoriesArgs struct {
 	Kind         string
 	Query        string
 	Config       string
-	Limit        int32
+	First        int32
 	ExcludeRepos []string
 }
 

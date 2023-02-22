@@ -442,23 +442,27 @@ func (r *externalServiceSyncJobResolver) ReposUnmodified() int32 { return r.job.
 
 func (r *externalServiceRepositoryConnectionResolver) compute(ctx context.Context) ([]*types.ExternalServiceRepository, int32, error) {
 	r.once.Do(func() {
-		connection, err := NewSourceConnection(r.args.Input)
-		// TODO Default page size ?
-		limit := int32(100)
-		if r.args.Input.Limit != nil {
-			limit = *r.args.Input.Limit
-		}
-		res, err := r.repoupdaterClient.ExternalServiceRepositories(ctx, r.args.Input.Kind, r.args.Input.Query, connection, limit, r.args.Input.ExcludeRepos)
+		config, err := NewSourceConfiguration(r.args.Kind, r.args.Url, r.args.Token)
 		if err != nil {
 			r.err = err
+			return
 		}
-		if res.Error != "" {
-			r.err = errors.New(res.Error)
+
+		first := int32(100)
+		if r.args.First != nil {
+			first = *r.args.First
+		}
+
+		reposArgs := protocol.ExternalServiceRepositoriesArgs{Kind: r.args.Kind, Query: r.args.Query, Config: config, First: first, ExcludeRepos: r.args.ExcludeRepos}
+		res, err := r.repoupdaterClient.ExternalServiceRepositories(ctx, reposArgs)
+		if err != nil {
+			r.err = err
 			return
 		}
 
 		for _, repo := range res.Repos {
-			node := &types.ExternalServiceSourceRepo{
+			node := &types.ExternalServiceRepository{
+				//ID: repo.ID,
 				Name:       repo.Name,
 				ExternalID: repo.ExternalRepo.ID,
 			}
@@ -500,7 +504,7 @@ func (r *externalServiceRepositoryConnectionResolver) PageInfo(ctx context.Conte
 }
 
 type externalServiceSourceRepoResolver struct {
-	srcRepo *types.ExternalServiceSourceRepo
+	srcRepo *types.ExternalServiceRepository
 }
 
 func (r *externalServiceSourceRepoResolver) ID() graphql.ID {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -290,6 +291,81 @@ func (s *GitHubSource) ListRepos(ctx context.Context, results chan SourceResult)
 			results <- SourceResult{Source: s, Repo: s.makeRepo(res.repo)}
 			s.logger.Debug("sent to result", log.String("repo", res.repo.NameWithOwner))
 			seen[res.repo.DatabaseID] = true
+		}
+	}
+}
+
+// ListRepositories returns the Github repositories matching the repositoryQuery and excluded repositories criteria.
+func (s *GitHubSource) ListRepositories(ctx context.Context, query string, first int, excludedRepos []string, results chan SourceResult) {
+	// default to fetching affiliated repositories
+	if query == "" {
+		s.fetchReposAffiliated(ctx, first, excludedRepos, results)
+	} else {
+		s.fetchReposQuery(ctx, query, first, excludedRepos, results)
+	}
+}
+
+func (s *GitHubSource) fetchReposQuery(ctx context.Context, query string, first int, excludedRepos []string, results chan SourceResult) {
+	unfiltered := make(chan *githubResult)
+	var buildExcludeClause strings.Builder
+	buildExcludeClause.WriteString(query)
+	for _, repo := range excludedRepos {
+		fmt.Fprintf(&buildExcludeClause, " -repo:%s", repo)
+	}
+
+	queryWithExclude := buildExcludeClause.String()
+	go func() {
+		s.listSearch(ctx, queryWithExclude, first, true, unfiltered)
+		close(unfiltered)
+	}()
+
+	s.logger.Debug("fetch github repos by search query", log.String("query", query), log.Int("excluded repos count", len(excludedRepos)))
+	for res := range unfiltered {
+		if res.err != nil {
+			results <- SourceResult{Source: s, Err: res.err}
+			continue
+		}
+
+		results <- SourceResult{Source: s, Repo: s.makeRepo(res.repo)}
+		s.logger.Debug("sent to result", log.String("repo", res.repo.NameWithOwner))
+	}
+}
+
+func (s *GitHubSource) fetchReposAffiliated(ctx context.Context, first int, excludedRepos []string, results chan SourceResult) {
+	unfiltered := make(chan *githubResult)
+
+	// request larger page of results to account for exclusion taking effect afterwards
+	bufferedFirst := first + len(excludedRepos)
+	go func() {
+		s.listAffiliated(ctx, bufferedFirst, unfiltered)
+		close(unfiltered)
+	}()
+
+	var eb excludeBuilder
+	// Only exclude on exact nameWithOwner match
+	for _, r := range excludedRepos {
+		eb.Exact(r)
+	}
+	exclude, err := eb.Build()
+	if err != nil {
+		results <- SourceResult{Source: s, Err: err}
+		return
+	}
+
+	s.logger.Debug("fetch github repos by affiliation", log.Int("excluded repos count", len(excludedRepos)))
+	for res := range unfiltered {
+		if first < 1 {
+			continue // drain the remaining github results
+		}
+		if res.err != nil {
+			results <- SourceResult{Source: s, Err: res.err}
+			continue
+		}
+		s.logger.Debug("unfiltered", log.String("repo", res.repo.NameWithOwner))
+		if !exclude(res.repo.NameWithOwner) {
+			results <- SourceResult{Source: s, Repo: s.makeRepo(res.repo)}
+			s.logger.Debug("sent to result", log.String("repo", res.repo.NameWithOwner))
+			first--
 		}
 	}
 }
