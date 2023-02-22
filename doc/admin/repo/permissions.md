@@ -268,7 +268,7 @@ By installing the [Bitbucket Server plugin](../../../integration/bitbucket_serve
 
 Prerequisite: [Add Gerrit as an authentication provider](../auth/index.md#gerrit).
 
-Then, [add or edit a Gerrit connection](../external_service/gerrit.md) and include the `authorization` field:
+Then, [add or edit a Gerrit connection](../external_service/gerrit/gerrit.md) and include the `authorization` field:
 
 ```json
 {
