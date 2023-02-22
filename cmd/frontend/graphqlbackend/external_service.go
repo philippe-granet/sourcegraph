@@ -440,6 +440,81 @@ func (r *externalServiceSyncJobResolver) ReposModified() int32 { return r.job.Re
 
 func (r *externalServiceSyncJobResolver) ReposUnmodified() int32 { return r.job.ReposUnmodified }
 
+func (r *externalServiceRepositoryConnectionResolver) compute(ctx context.Context) ([]*types.ExternalServiceRepository, int32, error) {
+	r.once.Do(func() {
+		connection, err := NewSourceConnection(r.args.Input)
+		// TODO Default page size ?
+		limit := int32(100)
+		if r.args.Input.Limit != nil {
+			limit = *r.args.Input.Limit
+		}
+		res, err := r.repoupdaterClient.ExternalServiceRepositories(ctx, r.args.Input.Kind, r.args.Input.Query, connection, limit, r.args.Input.ExcludeRepos)
+		if err != nil {
+			r.err = err
+		}
+		if res.Error != "" {
+			r.err = errors.New(res.Error)
+			return
+		}
+
+		for _, repo := range res.Repos {
+			node := &types.ExternalServiceSourceRepo{
+				Name:       repo.Name,
+				ExternalID: repo.ExternalRepo.ID,
+			}
+			r.nodes = append(r.nodes, node)
+		}
+		r.totalCount = int32(len(r.nodes))
+	})
+
+	return r.nodes, r.totalCount, r.err
+}
+
+func (r *externalServiceRepositoryConnectionResolver) Nodes(ctx context.Context) ([]*externalServiceSourceRepoResolver, error) {
+	sourceRepos, totalCount, err := r.compute(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := make([]*externalServiceSourceRepoResolver, totalCount)
+	for i, j := range sourceRepos {
+		nodes[i] = &externalServiceSourceRepoResolver{
+			srcRepo: j,
+		}
+	}
+
+	return nodes, nil
+}
+
+func (r *externalServiceRepositoryConnectionResolver) TotalCount(ctx context.Context) (int32, error) {
+	_, totalCount, err := r.compute(ctx)
+	return totalCount, err
+}
+
+func (r *externalServiceRepositoryConnectionResolver) PageInfo(ctx context.Context) (*graphqlutil.PageInfo, error) {
+	jobs, totalCount, err := r.compute(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return graphqlutil.HasNextPage(len(jobs) != int(totalCount)), nil
+}
+
+type externalServiceSourceRepoResolver struct {
+	srcRepo *types.ExternalServiceSourceRepo
+}
+
+func (r *externalServiceSourceRepoResolver) ID() graphql.ID {
+	return relay.MarshalID("ExternalServiceSourceRepo", r.srcRepo)
+}
+
+func (r *externalServiceSourceRepoResolver) Name() string {
+	return string(r.srcRepo.Name)
+}
+
+func (r *externalServiceSourceRepoResolver) ExternalID() string {
+	return r.srcRepo.ExternalID
+}
+
 func (r *externalServiceNamespaceConnectionResolver) compute(ctx context.Context) ([]*types.ExternalServiceNamespace, int32, error) {
 	r.once.Do(func() {
 		config, err := NewSourceConfiguration(r.args.Kind, r.args.Url, r.args.Token)

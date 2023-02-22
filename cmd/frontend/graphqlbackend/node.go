@@ -161,6 +161,11 @@ func (r *NodeResolver) ToExternalService() (*externalServiceResolver, bool) {
 	return n, ok
 }
 
+func (r *NodeResolver) ToExternalServiceRepository() (*externalServiceRepositoryResolver, bool) {
+	n, ok := r.Node.(*externalServiceSourceRepoResolver)
+	return n, ok
+}
+
 func (r *NodeResolver) ToExternalServiceNamespace() (*externalServiceNamespaceResolver, bool) {
 	n, ok := r.Node.(*externalServiceNamespaceResolver)
 	return n, ok

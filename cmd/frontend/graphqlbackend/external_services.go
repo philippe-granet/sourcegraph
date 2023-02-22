@@ -448,6 +448,50 @@ func (r *schemaResolver) CancelExternalServiceSync(ctx context.Context, args *ca
 	return &EmptyResponse{}, nil
 }
 
+type externalServiceRepositoriesArgs struct {
+	Input externalServiceRepositoriesInput
+}
+
+type externalServiceRepositoriesInput struct {
+	Kind         string
+	Token        string
+	Url          string
+	Query        string
+	ExcludeRepos []string
+	// ExcludeNamespaces []string
+	Limit *int32
+}
+
+func (r *schemaResolver) ExternalServiceRepositories(ctx context.Context, args *externalServiceRepositoriesArgs) (*externalServiceSourceRepositoryConnectionResolver, error) {
+	start := time.Now()
+	var err error
+	defer reportExternalServiceDuration(start, Add, &err)
+
+	if auth.CheckCurrentUserIsSiteAdmin(ctx, r.db) != nil {
+		err = auth.ErrMustBeSiteAdmin
+		return nil, err
+	}
+
+	res := externalServiceSourceRepositoryConnectionResolver{
+		db:                r.db,
+		args:              args,
+		repoupdaterClient: r.repoupdaterClient,
+	}
+	return &res, err
+}
+
+type externalServiceSourceRepositoryConnectionResolver struct {
+	args              *externalServiceRepositoriesArgs
+	db                database.DB
+	repoupdaterClient *repoupdater.Client
+	// limit             int
+
+	once       sync.Once
+	nodes      []*types.ExternalServiceSourceRepo
+	totalCount int32
+	err        error
+}
+
 type externalServiceNamespacesArgs struct {
 	Kind  string
 	Token string
