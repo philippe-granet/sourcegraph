@@ -200,6 +200,9 @@ func (ri *RepoInfo) ToProto() *proto.RepoInfo {
 }
 
 func RepoInfoFromProto(p *proto.RepoInfo) *RepoInfo {
+	if p == nil {
+		return nil
+	}
 	return &RepoInfo{
 		ID:          api.RepoID(p.GetId()),
 		Name:        api.RepoName(p.GetName()),
@@ -338,6 +341,9 @@ type RepoLinks struct {
 }
 
 func (rl *RepoLinks) ToProto() *proto.RepoLinks {
+	if rl == nil {
+		return nil
+	}
 	return &proto.RepoLinks{
 		Root:   rl.Root,
 		Tree:   rl.Tree,
@@ -347,6 +353,9 @@ func (rl *RepoLinks) ToProto() *proto.RepoLinks {
 }
 
 func RepoLinksFromProto(p *proto.RepoLinks) *RepoLinks {
+	if p == nil {
+		return nil
+	}
 	return &RepoLinks{
 		Root:   p.GetRoot(),
 		Tree:   p.GetTree(),

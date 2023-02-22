@@ -30,20 +30,6 @@ import (
 var (
 	repoUpdaterURL = env.Get("REPO_UPDATER_URL", "http://repo-updater:3182", "repo-updater server URL")
 
-	grpcClient = syncx.OnceValues(func() (proto.RepoUpdaterServiceClient, error) {
-		u, err := url.Parse(repoUpdaterURL)
-		if err != nil {
-			return nil, err
-		}
-		// TODO: how important is it to use a context here?
-		conn, err := grpc.Dial(u.Host, defaults.DialOptions()...)
-		if err != nil {
-			return nil, err
-		}
-
-		return proto.NewRepoUpdaterServiceClient(conn), nil
-	})
-
 	defaultDoer, _ = httpcli.NewInternalClientFactory("repoupdater").Doer()
 
 	// DefaultClient is the default Client. Unless overwritten, it is
@@ -59,6 +45,10 @@ type Client struct {
 
 	// HTTP client to use
 	HTTPClient httpcli.Doer
+
+	// grpcClient is a function that lazily creates a grpc client.
+	// Any implementation should not recreate the client more than once.
+	grpcClient func() (proto.RepoUpdaterServiceClient, error)
 }
 
 // NewClient will initiate a new repoupdater Client with the given serverURL.
@@ -66,6 +56,18 @@ func NewClient(serverURL string) *Client {
 	return &Client{
 		URL:        serverURL,
 		HTTPClient: defaultDoer,
+		grpcClient: syncx.OnceValues(func() (proto.RepoUpdaterServiceClient, error) {
+			u, err := url.Parse(serverURL)
+			if err != nil {
+				return nil, err
+			}
+			conn, err := grpc.Dial(u.Host, defaults.DialOptions()...)
+			if err != nil {
+				return nil, err
+			}
+
+			return proto.NewRepoUpdaterServiceClient(conn), nil
+		}),
 	}
 }
 
@@ -75,7 +77,7 @@ func (c *Client) RepoUpdateSchedulerInfo(
 	args protocol.RepoUpdateSchedulerInfoArgs,
 ) (result *protocol.RepoUpdateSchedulerInfoResult, err error) {
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := grpcClient()
+		client, err := c.grpcClient()
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +131,7 @@ func (c *Client) RepoLookup(
 	}
 
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := grpcClient()
+		client, err := c.grpcClient()
 		if err != nil {
 			return nil, err
 		}
@@ -137,15 +139,16 @@ func (c *Client) RepoLookup(
 		if err != nil {
 			return nil, errors.Wrapf(err, "RepoLookup for %+v failed", args)
 		}
+		res := protocol.RepoLookupResultFromProto(resp)
 		switch {
 		case resp.GetErrorNotFound():
-			return nil, &ErrNotFound{Repo: args.Repo, IsNotFound: true}
+			return res, &ErrNotFound{Repo: args.Repo, IsNotFound: true}
 		case resp.GetErrorUnauthorized():
-			return nil, &ErrUnauthorized{Repo: args.Repo, NoAuthz: true}
+			return res, &ErrUnauthorized{Repo: args.Repo, NoAuthz: true}
 		case resp.GetErrorTemporarilyUnavailable():
-			return nil, &ErrTemporary{Repo: args.Repo, IsTemporary: true}
+			return res, &ErrTemporary{Repo: args.Repo, IsTemporary: true}
 		}
-		return protocol.RepoLookupResultFromProto(resp), nil
+		return res, nil
 	}
 
 	resp, err := c.httpPost(ctx, "repo-lookup", args)
@@ -199,7 +202,7 @@ func (c *Client) EnqueueRepoUpdate(ctx context.Context, repo api.RepoName) (*pro
 	}
 
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := grpcClient()
+		client, err := c.grpcClient()
 		if err != nil {
 			return nil, err
 		}
@@ -207,8 +210,8 @@ func (c *Client) EnqueueRepoUpdate(ctx context.Context, repo api.RepoName) (*pro
 		req := proto.EnqueueRepoUpdateRequest{Repo: string(repo)}
 		resp, err := client.EnqueueRepoUpdate(ctx, &req)
 		if err != nil {
-			if status.Code(err) == codes.NotFound {
-				return nil, &repoNotFoundError{repo: string(repo), responseBody: err.Error()}
+			if st := status.Convert(err); st.Code() == codes.NotFound {
+				return nil, &repoNotFoundError{repo: string(repo), responseBody: st.Message()}
 			}
 			return nil, err
 		}
@@ -262,7 +265,7 @@ func (c *Client) EnqueueChangesetSync(ctx context.Context, ids []int64) error {
 	}
 
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := grpcClient()
+		client, err := c.grpcClient()
 		if err != nil {
 			return err
 		}
@@ -306,7 +309,7 @@ func (c *Client) SchedulePermsSync(ctx context.Context, args protocol.PermsSyncR
 	}
 
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := grpcClient()
+		client, err := c.grpcClient()
 		if err != nil {
 			return err
 		}
@@ -350,7 +353,7 @@ func (c *Client) SyncExternalService(ctx context.Context, externalServiceID int6
 	}
 
 	if internalgrpc.IsGRPCEnabled(ctx) {
-		client, err := grpcClient()
+		client, err := c.grpcClient()
 		if err != nil {
 			return nil, err
 		}
