@@ -1,0 +1,13 @@
+extend type Query {
+  localDirectoryPicker(dir: String): LocalDirectory!
+}
+
+type LocalDirectory {
+  """
+  Return if LocalDirectory API is available. This should only be true for
+  admin users on Sourcegraph App instances.
+  """
+  available: Boolean!
+
+
+}
