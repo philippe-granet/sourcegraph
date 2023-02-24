@@ -100,7 +100,7 @@ func TestGitHubHandler(t *testing.T) {
 	gs := grpc.NewServer(defaults.ServerOptions(logger)...)
 	v1.RegisterRepoUpdaterServiceServer(gs, &mockGRPCServer{
 		f: func(req *v1.EnqueueRepoUpdateRequest) (*v1.EnqueueRepoUpdateResponse, error) {
-			repositories, err := repoStore.List(ctx, database.ReposListOptions{Names: []string{string(req.Repo)}})
+			repositories, err := repoStore.List(ctx, database.ReposListOptions{Names: []string{req.Repo}})
 			if err != nil {
 				return nil, status.Error(codes.NotFound, err.Error())
 			}
