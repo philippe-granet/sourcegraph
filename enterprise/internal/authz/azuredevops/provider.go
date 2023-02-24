@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/sourcegraph/log"
 	authztypes "github.com/sourcegraph/sourcegraph/enterprise/internal/authz/types"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/licensing"
 	"github.com/sourcegraph/sourcegraph/internal/authz"
@@ -74,24 +75,24 @@ func (p *Provider) FetchUserPerms(ctx context.Context, account *extsvc.Account, 
 			ProjectOrOrgName: org,
 		})
 		if err != nil {
-			// TODO: Test error handling. And do the same for projects.
-			msg := err.Error()
 			if httpErr, ok := err.(*azuredevops.HTTPError); ok {
-				// The Azure DevOps API returns HTML on 4xx errors. We don't want to dump HTML into
-				// the logs / errors as this will bubble up everywhere and clutter all user
-				// interfaces. It destroys everything that it touches.
+				// If the HTTPError is 401 / 403 / 404, this user does not have access to this org.
+				// Skip and continue to the next.
 				//
-				// Drop the body and only write the status code and URL in the error.
-				msg = fmt.Sprintf("HTTP status: %d, URL: %q", httpErr.StatusCode, httpErr.URL.String())
+				// For orgs that don't exist, the API returns 404. For orgs that the user does not
+				// have access to the API returns 401. We're not sure if the API might return 403
+				// for some use case but we don't want to hard fail on that either.
+				if httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusNotFound {
+					l := log.Scoped("azuredevops.FetchuserPerms", "")
+					l.Warn("skipping", log.String("org", fmt.Sprintf("%#v", org)))
 
-				if httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden {
 					continue
 				}
+
 			}
 
-			return nil, errors.Newf("failed to list repositories for org: %q with error: %q", org, msg)
-			// TODO: log and continue or hard fail?
-			// TODO: Maybe hard fail on 4xx errs only.
+			// For any other errors, we want to hard fail so that the issue can be identified.
+			return nil, errors.Newf("failed to list repositories for org: %q with error: %q", org, err.Error())
 		}
 
 		repos = append(repos, r...)
