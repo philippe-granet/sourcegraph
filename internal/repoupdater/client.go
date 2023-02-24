@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go/ext"
@@ -16,7 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/sourcegraph/sourcegraph/internal/api"
-	"github.com/sourcegraph/sourcegraph/internal/env"
+	"github.com/sourcegraph/sourcegraph/internal/conf/deploy"
 	internalgrpc "github.com/sourcegraph/sourcegraph/internal/grpc"
 	"github.com/sourcegraph/sourcegraph/internal/grpc/defaults"
 	"github.com/sourcegraph/sourcegraph/internal/httpcli"
@@ -28,15 +29,25 @@ import (
 )
 
 var (
-	repoUpdaterURL = env.Get("REPO_UPDATER_URL", "http://repo-updater:3182", "repo-updater server URL")
-
 	defaultDoer, _ = httpcli.NewInternalClientFactory("repoupdater").Doer()
 
 	// DefaultClient is the default Client. Unless overwritten, it is
 	// connected to the server specified by the REPO_UPDATER_URL
 	// environment variable.
-	DefaultClient = NewClient(repoUpdaterURL)
+	DefaultClient = NewClient(repoUpdaterURLDefault())
 )
+
+func repoUpdaterURLDefault() string {
+	if u := os.Getenv("REPO_UPDATER_URL"); u != "" {
+		return u
+	}
+
+	if deploy.IsDeployTypeSingleProgram(deploy.Type()) {
+		return "http://127.0.0.1:3182"
+	}
+
+	return "http://repo-updater:3182"
+}
 
 // Client is a repoupdater client.
 type Client struct {
