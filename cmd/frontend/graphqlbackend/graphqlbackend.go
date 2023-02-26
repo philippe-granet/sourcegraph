@@ -666,12 +666,8 @@ func newSchemaResolver(db database.DB, gitserverClient gitserver.Client) *schema
 		"ExecutorSecretAccessLog": func(ctx context.Context, id graphql.ID) (Node, error) {
 			return executorSecretAccessLogByID(ctx, db, id)
 		},
-		"Team": func(ctx context.Context, id graphql.ID) (Node, error) {
-			team, err := findTeam(ctx, db.Teams(), &id, nil)
-			if err != nil {
-				return nil, err
-			}
-			return &TeamResolver{team: team, db: db}, nil
+		teamIDKind: func(ctx context.Context, id graphql.ID) (Node, error) {
+			return teamByID(ctx, db, id)
 		},
 		outboundWebhookIDKind: func(ctx context.Context, id graphql.ID) (Node, error) {
 			return OutboundWebhookByID(ctx, db, id)
