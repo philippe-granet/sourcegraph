@@ -68,7 +68,8 @@ function getRepoFilterExamples(repositoryName: string): { singleRepoExample: str
 
 export function useQueryExamples(
     selectedSearchContextSpec: string,
-    isSourcegraphDotCom: boolean = false
+    isSourcegraphDotCom: boolean = false,
+    enableOwnershipSearch: boolean = false
 ): QueryExamplesSection[][] {
     const [queryExamplesContent, setQueryExamplesContent] = useState<QueryExamplesContent>()
     const [cachedQueryExamplesContent, setCachedQueryExamplesContent, cachedQueryExamplesContentLoadStatus] =
@@ -177,6 +178,17 @@ export function useQueryExamples(
                         { id: 'type-diff-after', query: 'type:diff after:"1 year ago"' },
                     ],
                 },
+                ...(enableOwnershipSearch
+                    ? [
+                          {
+                              title: 'Explore code ownership',
+                              queryExamples: [
+                                  { id: 'type-has-owner', query: `file:some_path file:has.owner(johndoe)` },
+                                  { id: 'type-select-file-owners', query: 'file:some_path select:file.owners' },
+                              ],
+                          },
+                      ]
+                    : []),
             ],
             [
                 {
